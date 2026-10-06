@@ -59,12 +59,14 @@ function EditorNode(props: NodeProps) {
   const selected = statement.id === selectedId;
   const common = `editor-node editor-node--${statement.type} ${active ? "is-executing" : ""} ${selected ? "is-selected" : ""} ${drag.isDragging ? "is-dragging" : ""}`;
   const style = { transform: CSS.Translate.toString(drag.transform) };
-  const handle = <button className="node-handle" aria-label={t("editor.dragInstruction")} {...drag.listeners} {...drag.attributes} disabled={disabled}>⠿</button>;
-  const remove = <button className="node-remove" aria-label={t("common.remove")} onClick={(event) => { event.stopPropagation(); onDelete(statement.id); }} disabled={disabled}>×</button>;
+  const handle = <span className="node-handle" aria-hidden="true">⠿</span>;
+  const stopDrag = (event: { stopPropagation(): void }): void => event.stopPropagation();
+  const noDrag = { onPointerDown: stopDrag, onMouseDown: stopDrag, onTouchStart: stopDrag };
+  const remove = <button className="node-remove" aria-label={t("common.remove")} {...noDrag} onClick={(event) => { event.stopPropagation(); onDelete(statement.id); }} disabled={disabled}>×</button>;
 
-  if (statement.type === "repeat") return <article ref={drag.setNodeRef} className={common} style={style} onClick={() => onSelect(statement.id)}>
-    <header className="repeat-header">{handle}<span className="node-icon">↻</span><strong>{t("editor.repeat")}</strong><input aria-label={t("editor.repeat")} type="number" min="1" max={DEFAULT_PROGRAM_LIMITS.maxRepeatCount} value={statement.count} disabled={disabled} onClick={(event) => event.stopPropagation()} onChange={(event) => onCount(statement.id, Number(event.target.value))} /><span>{t("editor.times")}</span>{remove}</header>
-    <div className="repeat-body">
+  if (statement.type === "repeat") return <article ref={drag.setNodeRef} {...drag.listeners} className={common} style={style} onClick={() => onSelect(statement.id)}>
+    <header className="repeat-header">{handle}<span className="node-icon">↻</span><strong>{t("editor.repeat")}</strong><input aria-label={t("editor.repeat")} type="number" min="1" max={DEFAULT_PROGRAM_LIMITS.maxRepeatCount} value={statement.count} disabled={disabled} {...noDrag} onClick={(event) => event.stopPropagation()} onChange={(event) => onCount(statement.id, Number(event.target.value))} /><span>{t("editor.times")}</span>{remove}</header>
+    <div className="repeat-body" {...noDrag} onClick={stopDrag}>
       <DropSlot location={{ containerId: statement.id, index: 0 }} roomy={statement.body.length === 0} tone="repeat" />
       {statement.body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId: statement.id, index: index + 1 }} tone="repeat" /></div>)}
     </div>
@@ -72,17 +74,17 @@ function EditorNode(props: NodeProps) {
 
   if (statement.type === "ifPathAhead") {
     const evaluation = conditionResult && pathEquals(path, conditionResult.path) ? conditionResult.result : null;
-    return <article ref={drag.setNodeRef} className={`${common} ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
+    return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
       <header className="if-header">{handle}<span className="node-icon">◇</span><div><strong>{t("editor.if")}</strong><span className="condition-label">{t("editor.pathAhead")}</span></div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
-      <div className="if-body"><div className="branch-label"><span>{t("editor.then")}</span><i /></div><DropSlot location={{ containerId: statement.id, index: 0 }} roomy={statement.body.length === 0} tone="if" />
+      <div className="if-body" {...noDrag} onClick={stopDrag}><div className="branch-label"><span>{t("editor.then")}</span><i /></div><DropSlot location={{ containerId: statement.id, index: 0 }} roomy={statement.body.length === 0} tone="if" />
         {statement.body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId: statement.id, index: index + 1 }} tone="if" /></div>)}
       </div>
     </article>;
   }
 
-  return <article ref={drag.setNodeRef} className={common} style={style} onClick={() => onSelect(statement.id)}>
+  return <article ref={drag.setNodeRef} {...drag.listeners} className={common} style={style} onClick={() => onSelect(statement.id)}>
     {handle}<span className="node-icon">{statement.type === "moveForward" ? "↑" : statement.direction === "left" ? "↶" : "↷"}</span>
-    {statement.type === "moveForward" ? <strong>{t("editor.moveForward")}</strong> : <><strong>{t("editor.turn")}</strong><select aria-label={t("editor.turn")} value={statement.direction} disabled={disabled} onClick={(event) => event.stopPropagation()} onChange={(event) => onTurn(statement.id, event.target.value as "left" | "right")}><option value="left">{t("editor.left")}</option><option value="right">{t("editor.right")}</option></select></>}
+    {statement.type === "moveForward" ? <strong>{t("editor.moveForward")}</strong> : <><strong>{t("editor.turn")}</strong><select aria-label={t("editor.turn")} value={statement.direction} disabled={disabled} {...noDrag} onClick={(event) => event.stopPropagation()} onChange={(event) => onTurn(statement.id, event.target.value as "left" | "right")}><option value="left">{t("editor.left")}</option><option value="right">{t("editor.right")}</option></select></>}
     <span className="execution-pip" />{remove}
   </article>;
 }

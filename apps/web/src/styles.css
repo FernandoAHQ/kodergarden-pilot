@@ -146,14 +146,15 @@ h1 { margin: 8px 0 7px; color: #18372f; font-size: clamp(34px, 4vw, 52px); line-
 .drop-slot--repeat.is-over{color:#96602b;background:#fff0d6;border-color:#d79a51}.drop-slot--if.is-over{color:#31677a;background:#e5f2f4;border-color:#69a2b4}
 .drop-slot--roomy { height:105px; margin:8px 0; color:#8b978d; background:#f2f3eb; border:2px dashed #cbd1c7; font-size:10px; }
 .drop-slot--roomy.is-over { height:112px; background:#e8f3dd; border-color:#7da75d; }
-.editor-node { position:relative; display:flex; align-items:center; gap:8px; min-height:48px; padding:5px 8px; color:#29483f; background:#fff; border:1px solid #c9d2c9; border-radius:8px; box-shadow:0 3px 7px rgba(39,55,47,.07); transition:opacity .12s,box-shadow .12s,border-color .12s,transform .12s; }
+.editor-node { position:relative; z-index:10; display:flex; align-items:center; gap:8px; min-height:48px; padding:5px 8px; color:#29483f; background:#fff; border:1px solid #c9d2c9; border-radius:8px; box-shadow:0 3px 7px rgba(39,55,47,.07); cursor:grab; touch-action:none; user-select:none; transition:opacity .12s,box-shadow .12s,border-color .12s,transform .12s; }
+.editor-node:active { cursor:grabbing; }
 .editor-node::before,.editor-node::after{content:"";position:absolute;left:34px;width:22px;height:7px;background:inherit;border-left:1px solid #c9d2c9;border-right:1px solid #c9d2c9;z-index:2}.editor-node::before{top:-7px;border-top:1px solid #c9d2c9;border-radius:6px 6px 0 0}.editor-node::after{bottom:-7px;border-bottom:1px solid #c9d2c9;border-radius:0 0 6px 6px}.editor-node.is-executing::before,.editor-node.is-executing::after{border-color:#75ac48}
 .editor-node.is-selected { border-color:#6f9d5e; box-shadow:0 0 0 3px rgba(111,157,94,.14),0 4px 9px rgba(39,55,47,.08); }
 .editor-node.is-executing { background:#edf7de; border-color:#75ac48; box-shadow:0 0 0 4px rgba(117,172,72,.14); }
 .editor-node.is-dragging { opacity:.25; }
-.editor-node strong { font-size:12px; }.editor-node select,.repeat-header input { min-height:31px; color:#315147; background:#f1f2e9; border:1px solid #cfd4c9; border-radius:7px; font-size:11px;font-weight:700; }
+.editor-node strong { font-size:12px; }.editor-node select,.repeat-header input { min-height:44px; color:#315147; background:#f1f2e9; border:1px solid #cfd4c9; border-radius:7px; cursor:pointer; touch-action:manipulation; user-select:auto; font-size:11px;font-weight:700; }
 .editor-node select { margin-left:auto;padding:0 25px 0 9px; }.repeat-header input { width:48px;padding:0 6px;text-align:center; }
-.node-handle { width:44px;height:44px;margin:-4px 0 -4px -6px;padding:0;background:transparent;border:0;cursor:grab;touch-action:none; }.node-handle:active{cursor:grabbing}.node-remove { width:44px;height:44px;margin:-3px -6px -3px 0;color:#8f7f76;background:transparent;border:0;border-radius:8px;font-size:20px; }.node-remove:hover,.node-remove:focus-visible{color:#b94e36;background:#f9e8e2}
+.node-handle { width:44px;height:44px;margin:-4px 0 -4px -6px;padding:0;display:grid;place-items:center;background:transparent;border:0;pointer-events:none; }.node-remove { position:relative;z-index:12;width:44px;height:44px;margin:-3px -6px -3px 0;color:#8f7f76;background:transparent;border:0;border-radius:8px;cursor:pointer;touch-action:manipulation;font-size:20px; }.node-remove:hover,.node-remove:focus-visible{color:#b94e36;background:#f9e8e2}
 .execution-pip { margin-left:auto;width:6px;height:6px;border-radius:50%; }.is-executing>.execution-pip {background:#6eac3e;box-shadow:0 0 0 4px #dfefd3}.editor-node select+.execution-pip{margin-left:0}
 .editor-node--repeat { display:block;padding:0;overflow:visible;border-color:#dab780;background:#fffaf0; }
 .repeat-header { min-height:54px;padding:8px 10px;display:flex;align-items:center;gap:9px;color:#765027;background:#fae7c6; }.repeat-header .node-icon{background:#d18b3d}.repeat-header>span:not(.node-icon){font-size:10px;font-weight:700}.repeat-header .node-remove{margin-left:auto}
@@ -218,7 +219,7 @@ h1 { margin: 8px 0 7px; color: #18372f; font-size: clamp(34px, 4vw, 52px); line-
 .node-handle:hover,.node-handle:focus-visible,.node-remove:hover,.node-remove:focus-visible{color:#fff;background:rgba(255,255,255,.13)}
 .editor-node>.node-icon,.repeat-header>.node-icon,.if-header>.node-icon{flex:0 0 36px;width:36px;height:36px;background:var(--block-icon);border-radius:10px;box-shadow:inset 0 1px rgba(255,255,255,.18),0 2px 5px rgba(33,62,48,.16)}
 .editor-node strong{font-size:13px;color:inherit}
-.editor-node select,.repeat-header input{min-height:34px;color:#25453d;background:rgba(255,255,255,.94);border:1px solid rgba(36,67,57,.16);border-radius:9px;box-shadow:0 1px 2px rgba(43,64,54,.08);font-size:11px;font-weight:800}
+.editor-node select,.repeat-header input{min-height:44px;color:#25453d;background:rgba(255,255,255,.94);border:1px solid rgba(36,67,57,.16);border-radius:9px;box-shadow:0 1px 2px rgba(43,64,54,.08);font-size:11px;font-weight:800}
 .editor-node select{min-width:92px;margin-left:auto;padding:0 28px 0 10px}
 .repeat-header input{flex:0 0 48px;width:48px;padding:0 6px;text-align:center}
 .editor-node.is-selected{filter:drop-shadow(0 0 0 #fff) drop-shadow(0 0 3px rgba(39,98,73,.72)) drop-shadow(0 4px 5px rgba(35,63,49,.16))}
@@ -235,15 +236,15 @@ h1 { margin: 8px 0 7px; color: #18372f; font-size: clamp(34px, 4vw, 52px); line-
 .editor-node--ifPathAhead{--block-fill:linear-gradient(180deg,#69b2fa,#4d98e7);--block-edge:#2f7bc8;--block-icon:#2c71b7;--block-text:#fff}
 .repeat-header,.if-header{min-height:52px;margin:0;padding:4px 8px 7px;display:flex;align-items:center;gap:7px;color:var(--block-text);background:transparent;border:0;border-radius:0}
 .repeat-header>span:not(.node-icon){font-size:10px;font-weight:800}.repeat-header .node-remove{margin-left:auto}
-.repeat-body,.if-body{position:relative;margin:0 0 11px 16px;padding:7px 8px 7px 10px;background:#fbfbf6;border:1px solid rgba(52,73,62,.11);border-right:0;border-radius:10px 0 0 10px;box-shadow:inset 1px 0 rgba(255,255,255,.6)}
+.repeat-body,.if-body{position:relative;margin:0 0 11px 16px;padding:7px 8px 7px 10px;background:#fbfbf6;border:1px solid rgba(52,73,62,.11);border-right:0;border-radius:10px 0 0 10px;cursor:default;touch-action:pan-y;user-select:auto;box-shadow:inset 1px 0 rgba(255,255,255,.6)}
 .repeat-body .editor-node,.if-body .editor-node{min-height:52px}
 .repeat-body .drop-slot--roomy,.if-body .drop-slot--roomy{height:64px;margin:2px 0;background:rgba(255,255,255,.36);border:1px dashed rgba(101,121,108,.32);border-radius:9px}
 .if-header>div{display:flex;align-items:center;gap:8px;min-width:0}.if-header strong{text-transform:uppercase;letter-spacing:1px}.condition-label{min-width:0;padding:5px 8px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:8px;font-size:10px;font-weight:800;white-space:normal}.condition-result{margin-left:auto;padding:4px 7px;color:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.24);border-radius:9px;font:700 8px "DM Mono",monospace;opacity:.7}.condition-result.is-visible{opacity:1}.condition-true>.if-header .condition-result{color:#315f26;background:#ecf8e3;border-color:#c6e2b8}.condition-false>.if-header .condition-result{color:#8f4930;background:#fff0e7;border-color:#efc2aa}.if-header .node-remove{margin-left:0}
 .branch-label{left:-11px;top:9px}.branch-label span{color:var(--block-edge);font-weight:800}.branch-label i{background:var(--block-edge)}
 
-/* Connected siblings overlap by the connector depth. The invisible 30px drop
-   targets remain substantially larger than the visible join. */
-:is(.editor-canvas,.repeat-body,.if-body)>div>.drop-slot:not(.drop-slot--roomy){height:30px;margin:-18px 5px;z-index:8}
+/* Connector paint overlaps at the join while node rectangles stay separate.
+   The invisible 30px drop targets remain substantially larger than the visible join. */
+:is(.editor-canvas,.repeat-body,.if-body)>div>.drop-slot:not(.drop-slot--roomy){height:30px;margin:-15px 5px;z-index:8}
 :is(.editor-canvas,.repeat-body,.if-body)>div>.drop-slot:not(.drop-slot--roomy).is-over{height:34px;margin:-15px 5px}
 .editor-canvas>div,.repeat-body>div,.if-body>div{position:relative}
 .editor-node+.drop-slot{position:relative}
