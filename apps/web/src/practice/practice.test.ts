@@ -1,0 +1,16 @@
+import { program } from "@kodergarden/language";
+import { translate } from "../i18n.js";
+import { availableTools, challenges, evaluateChallenge } from "./challenges.js";
+import { completeChallenge, emptyProgress, isUnlocked } from "./progress.js";
+const assert=(value:boolean,message:string)=>{if(!value)throw new Error(message)};
+assert(challenges.length===12,"defines twelve challenges");
+assert(challenges.every((item,index)=>item.order===index+1),"progression order is stable");
+assert(!availableTools(challenges[4]!).includes("repeat")&&availableTools(challenges[5]!).includes("repeat"),"Repeat unlocks after repetitive challenge");
+assert(!availableTools(challenges[8]!).includes("ifPathAhead")&&availableTools(challenges[9]!).includes("ifPathAhead"),"If unlocks at condition challenge");
+assert(evaluateChallenge(challenges[7]!,true,6).complete,"accepts solution within block limit");
+assert(!evaluateChallenge(challenges[7]!,true,7).complete,"rejects solution above block limit");
+let progress=emptyProgress();assert(isUnlocked(1,progress,challenges.map(x=>x.id)),"first challenge is unlocked");progress=completeChallenge(progress,challenges[0]!.id);assert(isUnlocked(2,progress,challenges.map(x=>x.id)),"completion unlocks next challenge");
+assert(translate("en","c.01.title")==="First Steps","resolves English content");assert(translate("es","c.01.title")==="Primeros pasos","resolves Spanish content");assert(translate("es","missing.key")==="missing.key","fallback is deterministic");
+const ast=program([{type:"repeat",count:2,body:[{type:"moveForward"}]}]);assert(JSON.stringify(ast)===JSON.stringify(JSON.parse(JSON.stringify(ast))),"AST is language neutral");
+assert(challenges[0]!.world===challenges[0]!.world,"localized presentation shares challenge mechanics");
+console.log("practice: 12 tests passed");

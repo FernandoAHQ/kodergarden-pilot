@@ -1,0 +1,17 @@
+{
+  "name": "kodergarden",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @kodergarden/server --filter @kodergarden/web dev",
+    "dev:web": "pnpm --filter @kodergarden/web dev",
+    "dev:server": "pnpm --filter @kodergarden/server dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "test:live-load": "pnpm --filter @kodergarden/server test:live-load"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

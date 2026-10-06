@@ -1,0 +1,16 @@
+import type { Program, Statement } from "@kodergarden/language";
+import { useI18n } from "../i18n.js";
+
+const samePath = (left: readonly number[], right: readonly number[] | null): boolean => right !== null && left.length === right.length && left.every((part, index) => part === right[index]);
+
+function ReadonlyNode({ statement, path, activePath, conditionResult }: { readonly statement: Statement; readonly path: readonly number[]; readonly activePath: readonly number[] | null; readonly conditionResult: { readonly path: readonly number[]; readonly result: boolean } | null }) {
+  const { t } = useI18n();
+  const active = samePath(path, activePath);
+  const common = `editor-node editor-node--${statement.type === "if" ? "ifPathAhead" : statement.type === "turnLeft" || statement.type === "turnRight" ? "turn" : statement.type} ${active ? "is-executing" : ""}`;
+  if (statement.type === "repeat") return <article className={common}><header className="repeat-header"><span className="node-icon">↻</span><strong>{t("editor.repeat")}</strong><span className="readonly-value">{statement.count}</span><span>{t("editor.times")}</span></header><div className="repeat-body">{statement.body.map((child, index) => <div key={index}><ReadonlyNode statement={child} path={[...path, index]} activePath={activePath} conditionResult={conditionResult}/></div>)}</div></article>;
+  if (statement.type === "if") { const evaluation = conditionResult && samePath(path, conditionResult.path) ? conditionResult.result : null; return <article className={`${common} ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`}><header className="if-header"><span className="node-icon">◇</span><div><strong>{t("editor.if")}</strong><span className="condition-label">{t("editor.pathAhead")}</span></div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span></header><div className="if-body"><div className="branch-label"><span>{t("editor.then")}</span><i/></div>{statement.body.map((child, index) => <div key={index}><ReadonlyNode statement={child} path={[...path, index]} activePath={activePath} conditionResult={conditionResult}/></div>)}</div></article>; }
+  const turn = statement.type === "turnLeft" || statement.type === "turnRight";
+  return <article className={common}><span className="node-icon">{statement.type === "moveForward" ? "↑" : statement.type === "turnLeft" ? "↶" : "↷"}</span><strong>{statement.type === "moveForward" ? t("editor.moveForward") : t("editor.turn")}</strong>{turn && <span className="readonly-value readonly-value--turn">{t(statement.type === "turnLeft" ? "editor.left" : "editor.right")}</span>}<span className="execution-pip"/></article>;
+}
+
+export function ReadonlyProgram({ program, activePath, conditionResult }: { readonly program: Program; readonly activePath: readonly number[] | null; readonly conditionResult: { readonly path: readonly number[]; readonly result: boolean } | null }) { return <div className="readonly-program">{program.statements.map((statement, index) => <div key={index}><ReadonlyNode statement={statement} path={[index]} activePath={activePath} conditionResult={conditionResult}/></div>)}</div>; }
