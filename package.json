@@ -7,6 +7,7 @@
     "dev:web": "pnpm --filter @kodergarden/web dev",
     "dev:server": "pnpm --filter @kodergarden/server dev",
     "build": "pnpm -r build",
+    "start": "node apps/server/dist/main.js",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "test:live-load": "pnpm --filter @kodergarden/server test:live-load"

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
     "test": "tsc -p tsconfig.json && node dist/live-session.service.test.js && node dist/live.gateway.test.js",
     "test:live-load": "pnpm build && node dist/live-load.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -38,6 +38,38 @@ pnpm typecheck
 pnpm build
 ```
 
+## Production deployment
+
+Kodergarden deploys as one Node process. Nest serves the built React application and Socket.IO from the same origin, which avoids cross-origin setup and keeps reconnect behavior predictable.
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm start
+```
+
+The hosting platform may set `PORT`; it defaults to `3001`. Copy `.env.example` when running outside a managed host. `GET /healthz` is the liveness endpoint and `GET /readyz` is the readiness endpoint.
+
+The recommended container path is:
+
+```bash
+docker build -t kodergarden .
+docker run --rm -p 3001:3001 kodergarden
+```
+
+Then open `http://localhost:3001`. In production, terminate HTTPS at the hosting platform or reverse proxy and ensure WebSocket upgrade requests for `/socket.io/` reach this same process.
+
+Important deployment constraints:
+
+- Run exactly **one application instance**. Live sessions are intentionally stored in process memory; multiple replicas would require shared state and are not supported by this MVP.
+- Do not use scale-to-zero while a class may be active. A restart or redeploy intentionally ends all sessions.
+- Same-origin hosting is the default and needs no CORS setting. If the web application is hosted separately, build it with `VITE_LIVE_SERVER_URL=https://your-server.example` and set `CORS_ORIGINS` to the exact comma-separated HTTPS frontend origins.
+- Never set `CORS_ORIGINS=*`. Capability tokens authorize Live actions and must only travel over HTTPS outside a trusted LAN.
+- The server applies conservative per-IP limits to session creation, joins, and submissions. The join/submission limits allow a 40-device classroom behind one NAT address.
+- Preserve sticky routing if a hosting platform places more than one transport process in front of the single application instance.
+
+Before releasing, verify the deployed `/healthz`, load the home page, create a Live session, join from a second device, and confirm reconnect after temporarily disabling that device's network.
+
 ## Metric semantics
 
 - **Block count** is the number of authored statements. A `repeat` and each statement in its body count once, regardless of repeat count.

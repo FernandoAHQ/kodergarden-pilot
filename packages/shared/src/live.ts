@@ -1,7 +1,7 @@
 import type { Program } from "@kodergarden/language";
 
 export type LivePhase = "LOBBY" | "CHALLENGE_PREVIEW" | "PROGRAMMING" | "REVIEW" | "PLAYBACK" | "ENDED";
-export type LiveErrorCode = "SESSION_NOT_FOUND" | "INVALID_CODE" | "SESSION_ENDED" | "INVALID_NAME" | "NAME_TAKEN" | "UNAUTHORIZED" | "INVALID_PHASE" | "INVALID_CHALLENGE" | "SUBMISSIONS_CLOSED" | "INVALID_SUBMISSION" | "ROUND_MISMATCH" | "UNABLE_TO_RECONNECT";
+export type LiveErrorCode = "SESSION_NOT_FOUND" | "INVALID_CODE" | "SESSION_ENDED" | "INVALID_NAME" | "NAME_TAKEN" | "UNAUTHORIZED" | "INVALID_PHASE" | "INVALID_CHALLENGE" | "SUBMISSIONS_CLOSED" | "INVALID_SUBMISSION" | "ROUND_MISMATCH" | "UNABLE_TO_RECONNECT" | "RATE_LIMITED";
 
 export interface LiveError { readonly code: LiveErrorCode; readonly message: string }
 export interface ParticipantSummary { readonly id: string; readonly name: string; readonly connected: boolean; readonly hasSubmitted: boolean }
