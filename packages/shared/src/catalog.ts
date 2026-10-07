@@ -23,3 +23,21 @@ export interface CampaignResponseV1 {
   readonly version: 1;
   readonly campaign: CatalogCampaignDefinition;
 }
+
+export interface AdminIdentity {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string;
+}
+
+export interface AdminSessionResponseV1 {
+  readonly version: 1;
+  readonly user: AdminIdentity;
+  readonly csrfToken: string;
+  readonly expiresAt: string;
+}
+
+export interface AdminCatalogResponseV1 {
+  readonly version: 1;
+  readonly campaigns: readonly CatalogSummary[];
+}

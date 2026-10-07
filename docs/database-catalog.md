@@ -9,6 +9,10 @@ docker compose up -d postgres
 $env:DATABASE_URL='postgresql://kodergarden:kodergarden@127.0.0.1:55432/kodergarden'
 pnpm --filter @kodergarden/server migration:run
 pnpm --filter @kodergarden/server catalog:seed
+$env:ADMIN_EMAIL='admin@example.com'
+$env:ADMIN_PASSWORD='use-a-unique-password-of-at-least-12-characters'
+$env:ADMIN_DISPLAY_NAME='Team Admin'
+pnpm --filter @kodergarden/server admin:seed
 pnpm dev
 ```
 
@@ -32,6 +36,10 @@ Application startup fails when migrations are pending. `/readyz` returns HTTP 50
 - `GET /api/campaigns/:slug?locale=en` returns one complete published revision.
 
 Supported seed locales are `en` and `es`; unsupported locale values fall back to English. Live Classroom loads a published catalog snapshot at server startup and records the campaign revision ID on each round.
+
+## Team admin
+
+After running `admin:seed`, open `/admin`. The command creates the user only when the normalized email does not already exist; it never resets an existing password. Admin sessions expire after 12 hours and use an opaque, HttpOnly, `SameSite=Strict` cookie. Production cookies require HTTPS. The current admin catalog is read-only; draft editing and publishing are a later milestone.
 
 ## Verification
 

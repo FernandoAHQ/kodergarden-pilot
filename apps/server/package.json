@@ -14,6 +14,7 @@
     ,"migration:revert": "pnpm build && typeorm migration:revert -d dist/database.js"
     ,"catalog:seed": "pnpm build && node dist/catalog/seed.js"
     ,"test:database": "pnpm build && node dist/catalog/catalog.database.test.js"
+    ,"admin:seed": "pnpm build && node dist/auth/seed.js"
   },
   "dependencies": {
     "@kodergarden/engine": "workspace:*",
