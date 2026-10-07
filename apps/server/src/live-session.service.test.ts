@@ -112,4 +112,20 @@ expectCode("UNABLE_TO_RECONNECT", () => expiry.reconnectTeacher(expiring.teacher
 expiry.onModuleDestroy();
 service.onModuleDestroy();
 
+let layoutToken = 0;
+const layoutService = new LiveSessionService({ codeGenerator: () => "333333", tokenGenerator: () => `layout-${++layoutToken}`, layoutRandom: () => .5, sweepIntervalMs: 0, logger: () => {} });
+const layoutSession = layoutService.createSession();
+const layoutStudent = layoutService.joinParticipant("333333", "Lin");
+layoutService.selectCampaign(layoutSession.teacherToken, "foundations");
+const layoutPreview = layoutService.selectChallenge(layoutSession.teacherToken, "if-else");
+assert(layoutPreview.activeLayoutId === "turn-south", "live preview exposes the server-selected layout");
+const layoutRound = layoutService.startChallenge(layoutSession.teacherToken);
+assert(layoutRound.activeLayoutId === layoutPreview.activeLayoutId, "live round keeps the preview layout");
+const adaptiveProgram = { version: 2, statements: [{ type: "repeat", count: 3, body: [{ type: "ifElse", condition: { type: "pathAhead" }, thenBody: [{ type: "moveForward" }], elseBody: [{ type: "turnLeft" }] }] }] } as const;
+layoutService.submitSolution(layoutStudent.participantToken, layoutRound.roundId!, "if-else", adaptiveProgram);
+layoutService.closeSubmissions(layoutSession.teacherToken);
+const layoutExport = layoutService.exportSession(layoutSession.teacherToken);
+assert(layoutExport.rounds[0]?.layoutId === "turn-south" && layoutExport.rounds[0]?.participants[0]?.correct === true, "live grading and export use the selected layout");
+layoutService.onModuleDestroy();
+
 console.log(`live session domain: ${passed} tests passed`);

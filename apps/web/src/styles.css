@@ -23,6 +23,7 @@ main { min-height: 100vh; }
 .eyebrow i { width: 21px; height: 3px; background: #e26c3a; border-radius: 4px; }
 h1 { margin: 8px 0 7px; color: #18372f; font-size: clamp(34px, 4vw, 52px); line-height: 1; letter-spacing: -2.6px; }
 .challenge-intro p { margin: 0; color: #68746c; font-size: 15px; }
+.dynamic-layout-notice { max-width: 1450px; margin: -3px auto 10px; padding: 10px clamp(20px, 3vw, 50px); color: #27566a; background: #e4f3f7; border-block: 1px solid #b7dbe4; font-size: 12px; font-weight: 800; text-align: center; }
 .challenge-number { display: flex; align-items: center; gap: 13px; }
 .challenge-number span { writing-mode: vertical-rl; color: #98a096; font-size: 8px; font-weight: 800; letter-spacing: 1.7px; }
 .challenge-number strong { color: #e7e5d9; font-size: 60px; line-height: .9; letter-spacing: -5px; }

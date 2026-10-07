@@ -5,6 +5,16 @@ export type EditorTool = "moveForward" | "turn" | "repeat" | "ifPathAhead" | "if
 export type CampaignId = "foundations" | "garden-expedition";
 export type CampaignKind = "guided" | "advanced";
 
+export interface ChallengeWorldVariant {
+  readonly id: string;
+  readonly world: GridWorldDefinition;
+}
+
+export interface SelectedChallengeWorld {
+  readonly layoutId: string | null;
+  readonly world: GridWorldDefinition;
+}
+
 export interface PracticeChallengeDefinition {
   readonly id: string;
   readonly campaignId: CampaignId;
@@ -14,6 +24,7 @@ export interface PracticeChallengeDefinition {
   readonly instructionKey: string;
   readonly conceptKey: string;
   readonly world: GridWorldDefinition;
+  readonly worldVariants?: readonly ChallengeWorldVariant[];
   readonly allowed: readonly EditorTool[];
   readonly starter: Program;
   readonly maxBlocks?: number;
@@ -41,6 +52,19 @@ const repeat = (count: number, body: readonly Statement[]): Statement => ({ type
 const ifPath = (body: readonly Statement[]): Statement => ({ type: "if", condition: { type: "pathAhead" }, body });
 const allTools: readonly EditorTool[] = ["moveForward", "turn", "repeat", "ifPathAhead"];
 
+export function resolveChallengeWorld(challenge: PracticeChallengeDefinition, layoutId: string | null | undefined): GridWorldDefinition {
+  return challenge.worldVariants?.find((variant) => variant.id === layoutId)?.world ?? challenge.world;
+}
+
+export function selectChallengeWorld(challenge: PracticeChallengeDefinition, previousLayoutId: string | null = null, random: () => number = Math.random): SelectedChallengeWorld {
+  const variants = challenge.worldVariants;
+  if (!variants?.length) return { layoutId: null, world: challenge.world };
+  const choices = variants.length > 1 ? variants.filter((variant) => variant.id !== previousLayoutId) : variants;
+  const index = Math.min(choices.length - 1, Math.max(0, Math.floor(random() * choices.length)));
+  const selected = choices[index]!;
+  return { layoutId: selected.id, world: selected.world };
+}
+
 export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "sequence-01", campaignId: "foundations", order: 1, type: "build", titleKey: "c.01.title", instructionKey: "c.01.instruction", conceptKey: "c.01.concept", world: world(5, 4, 0, 2, "east", 2, 2), allowed: ["moveForward"], starter: empty() },
   { id: "sequence-02", campaignId: "foundations", order: 2, type: "build", titleKey: "c.02.title", instructionKey: "c.02.instruction", conceptKey: "c.02.concept", world: world(6, 4, 0, 2, "east", 4, 2), allowed: ["moveForward"], starter: empty() },
@@ -54,7 +78,12 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "condition-01", campaignId: "foundations", order: 10, type: "build", titleKey: "c.10.title", instructionKey: "c.10.instruction", conceptKey: "c.10.concept", world: world(5, 3, 0, 1, "east", 3, 1, [{ x: 4, y: 1 }]), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "if" },
   { id: "condition-repeat", campaignId: "foundations", order: 11, type: "build", titleKey: "c.11.title", instructionKey: "c.11.instruction", conceptKey: "c.11.concept", world: world(6, 3, 0, 1, "east", 5, 1), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4 },
   { id: "final", campaignId: "foundations", order: 12, type: "build", titleKey: "c.12.title", instructionKey: "c.12.instruction", conceptKey: "c.12.concept", world: world(7, 6, 1, 4, "east", 5, 1, [{ x: 3, y: 3 }, { x: 4, y: 3 }]), allowed: allTools, starter: empty(), maxBlocks: 9 },
-  { id: "if-else", campaignId: "foundations", order: 13, type: "build", titleKey: "c.13.title", instructionKey: "c.13.instruction", conceptKey: "c.13.concept", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]), allowed: ["moveForward", "turn", "repeat", "ifElsePathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "ifElse" },
+  { id: "if-else", campaignId: "foundations", order: 13, type: "build", titleKey: "c.13.title", instructionKey: "c.13.instruction", conceptKey: "c.13.concept", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]), worldVariants: [
+    { id: "turn-north", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]) },
+    { id: "turn-west", world: world(5, 5, 3, 3, "north", 1, 3, [{ x: 3, y: 2 }]) },
+    { id: "turn-south", world: world(5, 5, 3, 1, "west", 3, 3, [{ x: 2, y: 1 }]) },
+    { id: "turn-east", world: world(5, 5, 1, 1, "south", 3, 1, [{ x: 1, y: 2 }]) },
+  ], allowed: ["moveForward", "turn", "repeat", "ifElsePathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "ifElse" },
 ];
 
 export const gardenExpeditionChallenges: readonly PracticeChallengeDefinition[] = [
