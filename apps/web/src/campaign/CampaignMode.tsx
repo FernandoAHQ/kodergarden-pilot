@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { campaigns, type CampaignDefinition, type PracticeChallengeDefinition } from "@kodergarden/shared";
+import { type CampaignDefinition, type PracticeChallengeDefinition } from "@kodergarden/shared";
 import { countBlocks, validateProgram, type Program } from "@kodergarden/language";
 import { executeProgram, GridRuntime, type ExecutionEvent, type GridSnapshot } from "@kodergarden/engine";
 import { VisualEditor } from "../editor/VisualEditor.js";
@@ -12,10 +12,10 @@ import { campaignChallengeUnlocked, loadCampaignProgress, recordCampaignRun, sav
 let identity=0;
 const makeEditor=(source:Program):EditorProgram=>fromExecutableProgram(source,()=>`campaign-${identity++}`);
 const wait=(ms:number,signal:AbortSignal):Promise<void>=>new Promise(resolve=>{const timer=window.setTimeout(resolve,ms);signal.addEventListener("abort",()=>{window.clearTimeout(timer);resolve();},{once:true});});
-const advancedCampaigns=campaigns.filter(campaign=>campaign.kind==="advanced");
 const stars=(count:number)=>`${"★".repeat(count)}${"☆".repeat(3-count)}`;
 
-export function CampaignMode(){
+export function CampaignMode({campaigns}:{readonly campaigns:readonly CampaignDefinition[]}){
+ const advancedCampaigns=campaigns.filter(campaign=>campaign.kind==="advanced");
  const {locale,setLocale,t}=useI18n();
  const [screen,setScreen]=useState<"library"|"path"|"challenge">("library");
  const [campaign,setCampaign]=useState<CampaignDefinition>(advancedCampaigns[0]!);

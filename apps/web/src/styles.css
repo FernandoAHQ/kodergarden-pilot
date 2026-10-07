@@ -7,6 +7,7 @@ button, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled, select:disabled { cursor: not-allowed; opacity: .62; }
 main { min-height: 100vh; }
+.catalog-state { display: grid; place-content: center; justify-items: center; min-height: 100vh; padding: 32px; text-align: center; }
 
 .site-header { height: 78px; padding: 0 clamp(30px, 5vw, 82px); display: flex; align-items: center; border-bottom: 1px solid #d9d9ca; background: rgba(250,250,244,.78); backdrop-filter: blur(12px); }
 .brand { display: flex; align-items: center; gap: 11px; color: #18362e; text-decoration: none; font-size: 21px; font-weight: 800; letter-spacing: -.6px; }

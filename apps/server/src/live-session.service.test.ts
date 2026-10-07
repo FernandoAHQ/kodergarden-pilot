@@ -1,4 +1,5 @@
 import { program } from "@kodergarden/language";
+import { allChallenges } from "@kodergarden/shared";
 import { LiveDomainError, LiveSessionService } from "./live-session.service.js";
 
 let passed = 0;
@@ -11,7 +12,7 @@ const expectCode = (code: string, action: () => unknown): void => {
 let token = 0;
 let now = 100;
 const codes = ["123456", "123456", "654321"];
-const service = new LiveSessionService({ codeGenerator: () => codes.shift() ?? "999999", tokenGenerator: () => `token-${++token}`, clock: () => now++, sweepIntervalMs: 0, logger: () => {} });
+const service = new LiveSessionService({ codeGenerator: () => codes.shift() ?? "999999", tokenGenerator: () => `token-${++token}`, clock: () => now++, challenges: allChallenges, sweepIntervalMs: 0, logger: () => {} });
 
 const created = service.createSession();
 assert(created.snapshot.phase === "LOBBY" && created.snapshot.code === "123456", "creates a lobby with six-digit code");
@@ -113,7 +114,7 @@ expiry.onModuleDestroy();
 service.onModuleDestroy();
 
 let layoutToken = 0;
-const layoutService = new LiveSessionService({ codeGenerator: () => "333333", tokenGenerator: () => `layout-${++layoutToken}`, layoutRandom: () => .5, sweepIntervalMs: 0, logger: () => {} });
+const layoutService = new LiveSessionService({ codeGenerator: () => "333333", tokenGenerator: () => `layout-${++layoutToken}`, layoutRandom: () => .5, challenges: allChallenges, sweepIntervalMs: 0, logger: () => {} });
 const layoutSession = layoutService.createSession();
 const layoutStudent = layoutService.joinParticipant("333333", "Lin");
 layoutService.selectCampaign(layoutSession.teacherToken, "foundations");

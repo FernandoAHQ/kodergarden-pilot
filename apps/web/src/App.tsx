@@ -14,7 +14,7 @@ let identity=0;
 const makeEditor=(source:Program):EditorProgram=>fromExecutableProgram(source,()=>`practice-${identity++}`);
 const wait=(ms:number,signal:AbortSignal):Promise<void>=>new Promise(resolve=>{const timer=window.setTimeout(resolve,ms);signal.addEventListener("abort",()=>{window.clearTimeout(timer);resolve();},{once:true});});
 
-export function PracticeMode(){
+export function PracticeMode({challenges}:{readonly challenges:readonly PracticeChallenge[]}){
  const {locale,setLocale,t}=useI18n();
  const [screen,setScreen]=useState<"home"|"challenge">("home");
  const [challenge,setChallenge]=useState<PracticeChallenge>(challenges[0]!);

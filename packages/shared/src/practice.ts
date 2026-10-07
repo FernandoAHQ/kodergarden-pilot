@@ -2,7 +2,7 @@ import type { GridWorldDefinition } from "@kodergarden/engine";
 import { program, type Program, type Statement } from "@kodergarden/language";
 
 export type EditorTool = "moveForward" | "turn" | "repeat" | "ifPathAhead" | "ifElsePathAhead";
-export type CampaignId = "foundations" | "garden-expedition";
+export type CampaignId = string;
 export type CampaignKind = "guided" | "advanced";
 
 export interface ChallengeWorldVariant {
