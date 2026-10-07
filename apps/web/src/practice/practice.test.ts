@@ -1,4 +1,6 @@
-import { program } from "@kodergarden/language";
+import { countBlocks, program } from "@kodergarden/language";
+import { executeProgram, GridRuntime } from "@kodergarden/engine";
+import { campaigns, challengeBelongsToCampaign, gardenExpeditionChallenges, getCampaign } from "@kodergarden/shared";
 import { translate } from "../i18n.js";
 import { availableTools, challenges, evaluateChallenge } from "./challenges.js";
 import { completeChallenge, emptyProgress, isUnlocked } from "./progress.js";
@@ -13,4 +15,9 @@ let progress=emptyProgress();assert(isUnlocked(1,progress,challenges.map(x=>x.id
 assert(translate("en","c.01.title")==="First Steps","resolves English content");assert(translate("es","c.01.title")==="Primeros pasos","resolves Spanish content");assert(translate("es","missing.key")==="missing.key","fallback is deterministic");
 const ast=program([{type:"repeat",count:2,body:[{type:"moveForward"}]}]);assert(JSON.stringify(ast)===JSON.stringify(JSON.parse(JSON.stringify(ast))),"AST is language neutral");
 assert(challenges[0]!.world===challenges[0]!.world,"localized presentation shares challenge mechanics");
-console.log("practice: 12 tests passed");
+assert(campaigns.length===2&&getCampaign("foundations")?.challenges.length===12,"campaign registry contains Foundations");
+assert(gardenExpeditionChallenges.length===8&&gardenExpeditionChallenges.every((item,index)=>item.order===index+1),"Garden Expedition contains eight ordered challenges");
+assert(challengeBelongsToCampaign("garden-expedition","expedition-winding-path")&&!challengeBelongsToCampaign("foundations","expedition-winding-path"),"campaign membership is authoritative");
+for(const challenge of gardenExpeditionChallenges){const solution=challenge.referenceSolution!;const result=executeProgram(solution,new GridRuntime(challenge.world));assert(result.succeeded,`${challenge.id} reference solution succeeds`);assert(countBlocks(solution)<=challenge.parBlocks!&&result.executionSteps<=challenge.parSteps!,`${challenge.id} reference solution meets both targets`);}
+assert(translate("en","campaign.expedition.title")==="Garden Expedition"&&translate("es","campaign.expedition.title")==="Expedición del Jardín","campaign titles are localized");
+console.log("practice and campaigns: 32 tests passed");

@@ -12,6 +12,7 @@ export interface LiveSessionSnapshot {
   readonly code: string;
   readonly phase: LivePhase;
   readonly participants: readonly ParticipantSummary[];
+  readonly activeCampaignId: string | null;
   readonly activeChallengeId: string | null;
   readonly roundId: string | null;
   readonly submissionCount: number;
@@ -29,12 +30,13 @@ export interface JoinSessionResult { readonly participantToken: string; readonly
 export interface SessionCredentials { readonly token: string }
 export interface SubmitSolutionPayload { readonly participantToken: string; readonly roundId: string; readonly challengeId: string; readonly program: Program }
 export interface PilotParticipantResult { readonly participantId: string; readonly displayName: string; readonly submitted: boolean; readonly submissionAttempts: number; readonly resubmissions: number; readonly correct: boolean | null; readonly blockCount: number | null; readonly executionSteps: number | null; readonly submittedAt: number | null }
-export interface PilotRoundSummary { readonly roundId: string; readonly challengeId: string; readonly startedAt: number; readonly closedAt: number | null; readonly participants: readonly PilotParticipantResult[] }
+export interface PilotRoundSummary { readonly roundId: string; readonly campaignId: string; readonly challengeId: string; readonly startedAt: number; readonly closedAt: number | null; readonly participants: readonly PilotParticipantResult[] }
 export interface PilotSessionExport { readonly sessionId: string; readonly code: string; readonly startedAt: number; readonly exportedAt: number; readonly phase: LivePhase; readonly rounds: readonly PilotRoundSummary[] }
 
 export interface ClientToServerEvents {
   "teacher:create": (payload: Record<string, never>, ack: (result: LiveResult<CreateSessionResult>) => void) => void;
   "teacher:reconnect": (credentials: SessionCredentials, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
+  "teacher:selectCampaign": (payload: SessionCredentials & { readonly campaignId: string }, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
   "teacher:selectChallenge": (payload: SessionCredentials & { readonly challengeId: string }, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
   "teacher:startChallenge": (credentials: SessionCredentials, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
   "teacher:closeSubmissions": (credentials: SessionCredentials, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;

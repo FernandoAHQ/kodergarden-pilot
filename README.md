@@ -91,11 +91,11 @@ Editor statements carry UI-only stable IDs for React identity and drag operation
 
 The interpreter emits a semantic `conditionEvaluated` event with the authored statement path, condition type, and boolean result. Playback uses it to briefly display `Path ahead → YES/NO`; the event is environment-agnostic and contains no UI timing or styling concerns.
 
-## Practice Mode and localization
+## Campaigns, Practice Mode, and localization
 
-Practice Mode defines twelve language-neutral challenge mechanics in one progression and references localized content by translation key. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
+The shared campaign registry groups language-neutral challenges into stable, reusable collections. **Foundations** contains the twelve guided Practice activities; **Garden Expedition** is an eight-stage advanced campaign with sequential local progress, persistent best metrics, and one-to-three-star efficiency targets. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
 
-Local browser storage currently retains only the selected `en`/`es` locale, completed challenge IDs, and the most recent completion. There are no accounts or remote progress records.
+Local browser storage retains the selected `en`/`es` locale, legacy Practice completion, and versioned per-campaign challenge results. There are no accounts or remote progress records.
 
 ## Tablet-first interface
 
@@ -105,7 +105,7 @@ The challenge workbench prioritizes tablet landscape with a narrow toolbox and d
 
 Live Classroom uses typed Socket.IO contracts and a transport-independent NestJS session service. The server owns teacher and participant capabilities, state-machine transitions, rounds, role-scoped snapshots, submissions, and evaluation. Student clients may run programs locally, but the server independently validates each submitted AST, enforces challenge and safety limits, executes it through the shared engine, and calculates correctness and metrics.
 
-Teacher and participant capability tokens support refresh reconnect while the server remains alive. A participant reconnect receives their own latest submitted AST but never another student's program; review details and selected playback programs are sent only to the teacher role. Language remains a client-side preference and never enters authoritative session state.
+Teacher and participant capability tokens support refresh reconnect while the server remains alive. The teacher selects an authoritative campaign in the lobby before choosing a challenge and may switch campaigns between reviewed rounds. A participant reconnect receives their own latest submitted AST but never another student's program; review details and selected playback programs are sent only to the teacher role. Language remains a client-side preference and never enters authoritative session state.
 
 ## Classroom Pilot
 

@@ -1,0 +1,17 @@
+import { campaignChallengeUnlocked, emptyCampaignProgress, recordCampaignRun, starsForRun } from "./progress.js";
+const assert=(value:boolean,message:string)=>{if(!value)throw new Error(message)};
+assert(starsForRun(false,1,1,5,5)===0,"failure earns no stars");
+assert(starsForRun(true,6,4,5,5)===1,"goal earns one star");
+assert(starsForRun(true,5,6,5,5)===2,"block par earns two stars");
+assert(starsForRun(true,5,5,5,5)===3,"both pars earn three stars");
+let progress=emptyCampaignProgress();
+assert(campaignChallengeUnlocked(1,["a","b"],progress,"garden-expedition"),"first challenge unlocked");
+assert(!campaignChallengeUnlocked(2,["a","b"],progress,"garden-expedition"),"second challenge locked");
+progress=recordCampaignRun(progress,"garden-expedition","a",6,5,1);
+assert(campaignChallengeUnlocked(2,["a","b"],progress,"garden-expedition"),"completion unlocks next");
+progress=recordCampaignRun(progress,"garden-expedition","a",5,7,2);
+progress=recordCampaignRun(progress,"garden-expedition","a",7,4,3);
+const best=progress.campaigns["garden-expedition"]?.a;
+assert(best?.stars===3&&best.bestBlocks===5&&best.bestSteps===4,"best metrics and stars merge independently");
+assert(!progress.campaigns.foundations,"campaign progress is isolated");
+console.log("campaign progress: 8 tests passed");

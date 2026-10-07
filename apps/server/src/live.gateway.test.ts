@@ -27,6 +27,10 @@ try {
   assert(joined.snapshot.participants.length === 1, "socket student joins");
   assert((await teacherJoinUpdate).participants.length === 1, "teacher receives participant snapshot");
 
+  const studentCampaign = nextSnapshot(student);
+  const campaign = await emit<LiveSessionSnapshot>(teacher, "teacher:selectCampaign", { token: created.teacherToken, campaignId: "foundations" });
+  assert(campaign.activeCampaignId === "foundations", "teacher selects campaign over socket");
+  assert((await studentCampaign).activeCampaignId === "foundations", "student receives campaign selection");
   const studentPreview = nextSnapshot(student);
   const preview = await emit<LiveSessionSnapshot>(teacher, "teacher:selectChallenge", { token: created.teacherToken, challengeId: "sequence-01" });
   assert(preview.phase === "CHALLENGE_PREVIEW", "teacher selects challenge over socket");

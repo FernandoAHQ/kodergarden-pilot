@@ -9,5 +9,5 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/playback.ts", "src/playback.test.ts", "src/editor/model.ts", "src/editor/model.test.ts", "src/editor/dragEnd.ts", "src/editor/dragEnd.test.ts", "src/i18n.tsx", "src/practice/**/*.ts"]
+  "include": ["src/playback.ts", "src/playback.test.ts", "src/editor/model.ts", "src/editor/model.test.ts", "src/editor/dragEnd.ts", "src/editor/dragEnd.test.ts", "src/i18n.tsx", "src/practice/**/*.ts", "src/campaign/**/*.ts"]
 }

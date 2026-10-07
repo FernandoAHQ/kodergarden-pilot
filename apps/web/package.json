@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "tsc -p tsconfig.test.json && node test-dist/playback.test.js && node test-dist/editor/model.test.js && node test-dist/editor/dragEnd.test.js && node test-dist/practice/practice.test.js",
+    "test": "tsc -p tsconfig.test.json && node test-dist/playback.test.js && node test-dist/editor/model.test.js && node test-dist/editor/dragEnd.test.js && node test-dist/practice/practice.test.js && node test-dist/campaign/progress.test.js",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

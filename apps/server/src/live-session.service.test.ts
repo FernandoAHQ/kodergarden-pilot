@@ -28,6 +28,7 @@ assert(adaReconnect.participantId === ada.participantId && adaReconnect.snapshot
 const grace = service.joinParticipant("123456", "Grace");
 assert(grace.snapshot.participants.length === 2, "multiple participants can join");
 expectCode("UNABLE_TO_RECONNECT", () => service.selectChallenge(ada.participantToken, "sequence-01"));
+expectCode("UNABLE_TO_RECONNECT", () => service.selectCampaign(ada.participantToken, "foundations"));
 expectCode("UNABLE_TO_RECONNECT", () => service.startChallenge(ada.participantToken));
 expectCode("UNABLE_TO_RECONNECT", () => service.closeSubmissions(ada.participantToken));
 expectCode("UNABLE_TO_RECONNECT", () => service.selectSubmission(ada.participantToken, grace.participantId));
@@ -36,6 +37,9 @@ expectCode("UNABLE_TO_RECONNECT", () => service.endSession(ada.participantToken)
 expectCode("UNABLE_TO_RECONNECT", () => service.reconnectTeacher("student-token"));
 expectCode("INVALID_PHASE", () => service.startChallenge(created.teacherToken));
 expectCode("INVALID_CHALLENGE", () => service.selectChallenge(created.teacherToken, "missing"));
+const campaign = service.selectCampaign(created.teacherToken, "foundations");
+assert(campaign.activeCampaignId === "foundations" && campaign.activeChallengeId === null, "teacher selects a campaign before a challenge");
+expectCode("INVALID_CHALLENGE", () => service.selectChallenge(created.teacherToken, "expedition-winding-path"));
 
 const preview = service.selectChallenge(created.teacherToken, "sequence-01");
 assert(preview.phase === "CHALLENGE_PREVIEW" && preview.activeChallengeId === "sequence-01", "teacher selects an existing challenge");
@@ -67,7 +71,7 @@ const adaSummary = review.submissions.find((submission) => submission.participan
 assert(adaSummary?.correct && adaSummary.blockCount === 2 && adaSummary.executionSteps === 2, "server independently evaluates correctness and metrics");
 const exported = service.exportSession(created.teacherToken);
 const adaExport = exported.rounds[0]?.participants.find((participant) => participant.participantId === ada.participantId);
-assert(exported.rounds.length === 1 && adaExport?.submissionAttempts === 3 && adaExport.resubmissions === 2 && adaExport.correct === true, "pilot export summarizes attempts and final metrics");
+assert(exported.rounds.length === 1 && exported.rounds[0]?.campaignId === "foundations" && adaExport?.submissionAttempts === 3 && adaExport.resubmissions === 2 && adaExport.correct === true, "pilot export includes campaign identity and final metrics");
 const exportedJson = JSON.stringify(exported);
 assert(!exportedJson.includes('"teacherToken"') && !exportedJson.includes('"participantToken"') && !exportedJson.includes('"program"'), "pilot export excludes capabilities and full ASTs");
 expectCode("SUBMISSIONS_CLOSED", () => service.submitSolution(ada.participantToken, round, "sequence-01", correct));
@@ -81,6 +85,9 @@ const earliest = service.quickPick(created.teacherToken, "earliest");
 assert(earliest.selectedParticipantId === ada.participantId, "earliest correct selection is deterministic");
 service.returnToReview(created.teacherToken);
 
+const advancedCampaign = service.selectCampaign(created.teacherToken, "garden-expedition");
+assert(advancedCampaign.activeCampaignId === "garden-expedition" && advancedCampaign.activeChallengeId === null && advancedCampaign.participants.length === 2, "teacher switches campaigns between rounds without losing participants");
+service.selectCampaign(created.teacherToken, "foundations");
 const nextPreview = service.selectChallenge(created.teacherToken, "turn-01");
 assert(nextPreview.phase === "CHALLENGE_PREVIEW" && nextPreview.participants.length === 2, "next challenge preserves participants");
 const nextRound = service.startChallenge(created.teacherToken);

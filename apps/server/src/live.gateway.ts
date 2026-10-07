@@ -24,6 +24,8 @@ export class LiveGateway implements OnGatewayDisconnect {
   }
   @SubscribeMessage("teacher:selectChallenge")
   selectChallenge(@MessageBody() body: { token: string; challengeId: string }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.selectChallenge(body.token, body.challengeId)); }
+  @SubscribeMessage("teacher:selectCampaign")
+  selectCampaign(@MessageBody() body: { token: string; campaignId: string }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.selectCampaign(body.token, body.campaignId)); }
   @SubscribeMessage("teacher:startChallenge")
   startChallenge(@MessageBody() body: { token: string }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.startChallenge(body.token)); }
   @SubscribeMessage("teacher:closeSubmissions")

@@ -47,6 +47,7 @@ try {
   metrics.duplicateParticipants = lobby.participants.length - new Set(lobby.participants.map((participant) => participant.id)).size;
   if (lobby.participants.length !== studentTarget) throw new Error(`join-count:${lobby.participants.length}`);
 
+  await emitOk<LiveSessionSnapshot>(teacher, "teacher:selectCampaign", { token: created.teacherToken, campaignId: "foundations" });
   await emitOk<LiveSessionSnapshot>(teacher, "teacher:selectChallenge", { token: created.teacherToken, challengeId: "sequence-01" });
   const programming = await emitOk<LiveSessionSnapshot>(teacher, "teacher:startChallenge", { token: created.teacherToken });
   if (programming.phase !== "PROGRAMMING" || !programming.roundId) throw new Error("challenge-start-state");
