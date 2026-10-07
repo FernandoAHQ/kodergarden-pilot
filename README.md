@@ -2,6 +2,8 @@
 
 Kodergarden is a classroom-focused visual programming platform. It includes self-paced Practice Mode and an ephemeral, realtime Live Classroom experience for a projected teacher board and student devices.
 
+Project delivery is tracked in the lightweight [project guide](docs/project.md) and [delivery board](docs/backlog.md). The current milestone is pilot readiness.
+
 ## Architecture
 
 ```text
