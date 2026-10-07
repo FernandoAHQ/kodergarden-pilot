@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { DEFAULT_PROGRAM_LIMITS } from "@kodergarden/language";
 import { useI18n } from "../i18n.js";
 import { createEditorId, createPaletteStatement, routeDragEnd, type PaletteKind } from "./dragEnd.js";
-import { deleteStatement, findLocation, insertStatement, moveStatement, updateRepeatCount, updateTurn, type EditorLocation, type EditorProgram, type EditorStatement } from "./model.js";
+import { deleteStatement, elseContainerId, findLocation, insertStatement, moveStatement, thenContainerId, updateRepeatCount, updateTurn, type EditorLocation, type EditorProgram, type EditorStatement } from "./model.js";
 
 const pathEquals = (a: readonly number[], b: readonly number[] | null): boolean => b !== null && a.length === b.length && a.every((value, index) => value === b[index]);
 const canvasDropId = "drop:root:canvas";
@@ -82,6 +82,19 @@ function EditorNode(props: NodeProps) {
     </article>;
   }
 
+  if (statement.type === "ifElsePathAhead") {
+    const evaluation = conditionResult && pathEquals(path, conditionResult.path) ? conditionResult.result : null;
+    const branch = (label: string, body: readonly EditorStatement[], containerId: string, activeBranch: boolean) => <div className={`if-body if-else-branch ${activeBranch ? "is-active-branch" : ""}`} {...noDrag} onClick={stopDrag}>
+      <div className="branch-label"><span>{label}</span><i /></div><DropSlot location={{ containerId, index: 0 }} roomy={body.length === 0} tone="if" />
+      {body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId, index: index + 1 }} tone="if" /></div>)}
+    </div>;
+    return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} editor-node--ifPathAhead ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
+      <header className="if-header">{handle}<span className="node-icon">◇</span><div><strong>{t("editor.if")}</strong><span className="condition-label">{t("editor.pathAhead")}</span></div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
+      {branch(t("editor.then"), statement.thenBody, thenContainerId(statement.id), evaluation === true)}
+      {branch(t("editor.else"), statement.elseBody, elseContainerId(statement.id), evaluation === false)}
+    </article>;
+  }
+
   return <article ref={drag.setNodeRef} {...drag.listeners} className={common} style={style} onClick={() => onSelect(statement.id)}>
     {handle}<span className="node-icon">{statement.type === "moveForward" ? "↑" : statement.direction === "left" ? "↶" : "↷"}</span>
     {statement.type === "moveForward" ? <strong>{t("editor.moveForward")}</strong> : <><strong>{t("editor.turn")}</strong><select aria-label={t("editor.turn")} value={statement.direction} disabled={disabled} {...noDrag} onClick={(event) => event.stopPropagation()} onChange={(event) => onTurn(statement.id, event.target.value as "left" | "right")}><option value="left">{t("editor.left")}</option><option value="right">{t("editor.right")}</option></select></>}
@@ -140,7 +153,7 @@ export function VisualEditor({ program, allowed, onChange, activePath, condition
       <div className="section-kicker">{t("editor.palette")}</div><h2>{t("editor.blocks")}</h2><p>{t("editor.drag")}</p>
       {allowed.some(x=>x==="moveForward"||x==="turn")&&<><h3>{t("editor.movement")}</h3>{allowed.includes("moveForward")&&<PaletteCard kind="moveForward" icon="↑" title={t("editor.moveForward")} detail={t("editor.moveDetail")} disabled={disabled} />}{allowed.includes("turn")&&<PaletteCard kind="turn" icon="↷" title={t("editor.turn")} detail={t("editor.turnDetail")} disabled={disabled} />}</>}
       {allowed.includes("repeat")&&<><h3>{t("editor.control")}</h3><PaletteCard kind="repeat" icon="↻" title={t("editor.repeat")} detail={t("editor.repeatDetail")} disabled={disabled} /></>}
-      {allowed.includes("ifPathAhead")&&<><h3>{t("editor.logic")}</h3><PaletteCard kind="ifPathAhead" icon="◇" title={t("editor.ifPathAhead")} detail={t("editor.ifDetail")} disabled={disabled} /></>}
+      {allowed.some(x=>x==="ifPathAhead"||x==="ifElsePathAhead")&&<><h3>{t("editor.logic")}</h3>{allowed.includes("ifPathAhead")&&<PaletteCard kind="ifPathAhead" icon="◇" title={t("editor.ifPathAhead")} detail={t("editor.ifDetail")} disabled={disabled} />}{allowed.includes("ifElsePathAhead")&&<PaletteCard kind="ifElsePathAhead" icon="◇" title={t("editor.ifElsePathAhead")} detail={t("editor.ifElseDetail")} disabled={disabled} />}</>}
       <div className="palette-tip"><span>✦</span><p>{t("editor.tip")}</p></div>
     </aside>
     <section className="program-editor" tabIndex={0} onKeyDown={(event) => { if (!disabled && selectedId && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); remove(selectedId); } }}>
@@ -151,6 +164,6 @@ export function VisualEditor({ program, allowed, onChange, activePath, condition
       </ProgramCanvas>
       <div className="editor-foot"><span>{t("editor.topLevel",{count:program.statements.length})}</span><span>{selectedId ? t("editor.selected") : t("editor.selectHint")}</span></div>
     </section>
-    <DragOverlay>{dragLabel && <div className={`drag-preview drag-preview--${dragLabel}`}>{dragLabel === "moveForward" ? `↑ ${t("editor.moveForward")}` : dragLabel === "turn" ? `↷ ${t("editor.turn")}` : dragLabel === "repeat" ? `↻ ${t("editor.repeat")}` : dragLabel === "ifPathAhead" ? `◇ ${t("editor.ifPathAhead")}` : t("editor.dragInstruction")}</div>}</DragOverlay>
+    <DragOverlay>{dragLabel && <div className={`drag-preview drag-preview--${dragLabel}`}>{dragLabel === "moveForward" ? `↑ ${t("editor.moveForward")}` : dragLabel === "turn" ? `↷ ${t("editor.turn")}` : dragLabel === "repeat" ? `↻ ${t("editor.repeat")}` : dragLabel === "ifPathAhead" ? `◇ ${t("editor.ifPathAhead")}` : dragLabel === "ifElsePathAhead" ? `◇ ${t("editor.ifElsePathAhead")}` : t("editor.dragInstruction")}</div>}</DragOverlay>
   </DndContext>;
 }

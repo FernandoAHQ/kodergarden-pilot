@@ -37,8 +37,13 @@ assert(conditionalResult.events.some((event) => event.type === "conditionEvaluat
 const trueConditional = executeProgram(program([{ type: "if", condition: { type: "pathAhead" }, body: [{ type: "moveForward" }] }]), new GridRuntime(world));
 assert(trueConditional.events.some((event) => event.type === "conditionEvaluated" && event.result), "reports a true condition evaluation");
 
+const falseIfElse = executeProgram({ version: 2, statements: [{ type: "moveForward" }, { type: "turnRight" }, { type: "ifElse", condition: { type: "pathAhead" }, thenBody: [{ type: "moveForward" }], elseBody: [{ type: "turnLeft" }] }] }, new GridRuntime(world));
+assert(falseIfElse.finalState.robot.direction === "north", "runs the Else branch when the condition is false");
+const trueIfElse = executeProgram({ version: 2, statements: [{ type: "ifElse", condition: { type: "pathAhead" }, thenBody: [{ type: "moveForward" }], elseBody: [{ type: "turnRight" }] }] }, new GridRuntime(world));
+assert(trueIfElse.finalState.robot.y === 1, "runs the Then branch when the condition is true");
+
 const limited = executeProgram(program([{ type: "repeat", count: 10, body: [{ type: "turnRight" }] }]), new GridRuntime(world), { maxSteps: 3 });
 assert(limited.stoppedByLimit && limited.executionSteps === 3, "stops at the execution limit");
 assert(limited.events.at(-1)?.type === "executionLimitReached", "emits the limit event");
 
-console.log("engine: 12 tests passed");
+console.log("engine: 14 tests passed");

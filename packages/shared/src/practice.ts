@@ -1,7 +1,7 @@
 import type { GridWorldDefinition } from "@kodergarden/engine";
 import { program, type Program, type Statement } from "@kodergarden/language";
 
-export type EditorTool = "moveForward" | "turn" | "repeat" | "ifPathAhead";
+export type EditorTool = "moveForward" | "turn" | "repeat" | "ifPathAhead" | "ifElsePathAhead";
 export type CampaignId = "foundations" | "garden-expedition";
 export type CampaignKind = "guided" | "advanced";
 
@@ -54,6 +54,7 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "condition-01", campaignId: "foundations", order: 10, type: "build", titleKey: "c.10.title", instructionKey: "c.10.instruction", conceptKey: "c.10.concept", world: world(5, 3, 0, 1, "east", 3, 1, [{ x: 4, y: 1 }]), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "if" },
   { id: "condition-repeat", campaignId: "foundations", order: 11, type: "build", titleKey: "c.11.title", instructionKey: "c.11.instruction", conceptKey: "c.11.concept", world: world(6, 3, 0, 1, "east", 5, 1), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4 },
   { id: "final", campaignId: "foundations", order: 12, type: "build", titleKey: "c.12.title", instructionKey: "c.12.instruction", conceptKey: "c.12.concept", world: world(7, 6, 1, 4, "east", 5, 1, [{ x: 3, y: 3 }, { x: 4, y: 3 }]), allowed: allTools, starter: empty(), maxBlocks: 9 },
+  { id: "if-else", campaignId: "foundations", order: 13, type: "build", titleKey: "c.13.title", instructionKey: "c.13.instruction", conceptKey: "c.13.concept", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]), allowed: ["moveForward", "turn", "repeat", "ifElsePathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "ifElse" },
 ];
 
 export const gardenExpeditionChallenges: readonly PracticeChallengeDefinition[] = [
@@ -80,6 +81,9 @@ export const evaluatePracticeChallenge = (challenge: PracticeChallengeDefinition
 export const evaluateLiveChallenge = (challenge: PracticeChallengeDefinition, succeeded: boolean, blocks: number) => challenge.campaignId === "garden-expedition" ? { goalReached: succeeded, withinBlockLimit: true, complete: succeeded } : evaluatePracticeChallenge(challenge, succeeded, blocks);
 
 export function statementAllowed(statement: Statement, allowed: readonly EditorTool[]): boolean {
-  const own = statement.type === "moveForward" ? "moveForward" : statement.type === "turnLeft" || statement.type === "turnRight" ? "turn" : statement.type === "repeat" ? "repeat" : "ifPathAhead";
-  return allowed.includes(own) && (statement.type !== "repeat" && statement.type !== "if" || statement.body.every((child) => statementAllowed(child, allowed)));
+  const own = statement.type === "moveForward" ? "moveForward" : statement.type === "turnLeft" || statement.type === "turnRight" ? "turn" : statement.type === "repeat" ? "repeat" : statement.type === "if" ? "ifPathAhead" : "ifElsePathAhead";
+  if (!allowed.includes(own)) return false;
+  if (statement.type === "repeat" || statement.type === "if") return statement.body.every((child) => statementAllowed(child, allowed));
+  if (statement.type === "ifElse") return [...statement.thenBody, ...statement.elseBody].every((child) => statementAllowed(child, allowed));
+  return true;
 }

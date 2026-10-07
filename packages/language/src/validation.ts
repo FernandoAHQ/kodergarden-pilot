@@ -26,6 +26,7 @@ export function validateProgram(
   const errors: string[] = [];
   let blocks = 0;
 
+  let version: 1 | 2 | undefined;
   const validateStatements = (
     value: unknown,
     path: string,
@@ -73,6 +74,18 @@ export function validateProgram(
           }
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
+        case "ifElse":
+          if (version !== 2) {
+            errors.push(`${statementPath}.type requires program.version 2`);
+            valid = false;
+          }
+          if (!isRecord(candidate.condition) || candidate.condition.type !== "pathAhead") {
+            errors.push(`${statementPath}.condition must be pathAhead`);
+            valid = false;
+          }
+          if (!validateStatements(candidate.thenBody, `${statementPath}.thenBody`, depth + 1)) valid = false;
+          if (!validateStatements(candidate.elseBody, `${statementPath}.elseBody`, depth + 1)) valid = false;
+          break;
         default:
           errors.push(`${statementPath}.type is not supported`);
           valid = false;
@@ -82,7 +95,8 @@ export function validateProgram(
   };
 
   if (!isRecord(input)) return { ok: false, errors: ["program must be an object"] };
-  if (input.version !== 1) errors.push("program.version must be 1");
+  if (input.version !== 1 && input.version !== 2) errors.push("program.version must be 1 or 2");
+  else version = input.version;
   validateStatements(input.statements, "program.statements", 1);
 
   return errors.length === 0

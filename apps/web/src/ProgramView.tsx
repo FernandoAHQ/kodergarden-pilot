@@ -16,20 +16,24 @@ const icon: Record<"moveForward" | "turnLeft" | "turnRight", string> = {
 
 function StatementCard({ statement, path, activePath }: { readonly statement: Statement; readonly path: readonly number[]; readonly activePath: readonly number[] | null }) {
   const active = samePath(path, activePath);
-  if (statement.type === "repeat" || statement.type === "if") {
+  if (statement.type === "repeat" || statement.type === "if" || statement.type === "ifElse") {
+    const primaryBody = statement.type === "ifElse" ? statement.thenBody : statement.body;
     return (
       <div className={`program-control ${active ? "is-active" : ""}`} data-path={path.join(".")}>
         <div className="program-control__header">
           <span className="statement-icon">{statement.type === "repeat" ? "↻" : "?"}</span>
-          <span>{statement.type === "repeat" ? "REPEAT" : "IF"}</span>
+          <span>{statement.type === "repeat" ? "REPEAT" : statement.type === "ifElse" ? "IF / ELSE" : "IF"}</span>
           <strong>{statement.type === "repeat" ? `${statement.count} times` : "path ahead"}</strong>
           <span className="running-dot" aria-hidden="true" />
         </div>
         <div className="program-control__body">
-          {statement.body.map((child, index) => (
+          {primaryBody.map((child, index) => (
             <StatementCard key={index} statement={child} path={[...path, index]} activePath={activePath} />
           ))}
         </div>
+        {statement.type === "ifElse" && <div className="program-control__body" data-branch="else">
+          {statement.elseBody.map((child, index) => <StatementCard key={index} statement={child} path={[...path, index]} activePath={activePath} />)}
+        </div>}
       </div>
     );
   }

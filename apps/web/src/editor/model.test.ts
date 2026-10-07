@@ -1,5 +1,5 @@
 import { validateProgram } from "@kodergarden/language";
-import { commitHistory, createHistory, deleteStatement, findLocation, insertStatement, moveStatement, redoHistory, toExecutableProgram, undoHistory, updateRepeatCount, updateTurn, type EditorProgram } from "./model.js";
+import { commitHistory, createHistory, deleteStatement, elseContainerId, findLocation, fromExecutableProgram, insertStatement, moveStatement, redoHistory, thenContainerId, toExecutableProgram, undoHistory, updateRepeatCount, updateTurn, type EditorProgram } from "./model.js";
 
 const assert = (condition: boolean, message: string): void => { if (!condition) throw new Error(message); };
 const move = { id: "m", type: "moveForward" } as const;
@@ -55,4 +55,13 @@ const undoneIf = undoHistory(withIf);
 assert(!findLocation(undoneIf.present, "if"), "undo removes committed If");
 const redoneIf = redoHistory(undoneIf);
 assert(findLocation(redoneIf.present, "if")?.containerId === null, "redo restores committed If");
-console.log("editor model: 23 tests passed");
+let ifElseEditor: EditorProgram = { statements: [{ id: "choice", type: "ifElsePathAhead", thenBody: [], elseBody: [] }] };
+ifElseEditor = insertStatement(ifElseEditor, { containerId: thenContainerId("choice"), index: 0 }, { id: "yes-move", type: "moveForward" });
+ifElseEditor = insertStatement(ifElseEditor, { containerId: elseContainerId("choice"), index: 0 }, { id: "no-turn", type: "turn", direction: "left" });
+assert(findLocation(ifElseEditor, "yes-move")?.containerId === thenContainerId("choice"), "finds instructions in the Then branch");
+assert(findLocation(ifElseEditor, "no-turn")?.containerId === elseContainerId("choice"), "finds instructions in the Else branch");
+const ifElseExecutable = toExecutableProgram(ifElseEditor);
+assert(ifElseExecutable.version === 2 && validateProgram(ifElseExecutable).ok, "emits a valid version 2 program for If / Else");
+const roundTrip = fromExecutableProgram(ifElseExecutable, (() => { let id = 0; return () => `round-${id++}`; })());
+assert(roundTrip.statements[0]?.type === "ifElsePathAhead" && roundTrip.statements[0].thenBody.length === 1 && roundTrip.statements[0].elseBody.length === 1, "round trips both If / Else branches");
+console.log("editor model: 27 tests passed");

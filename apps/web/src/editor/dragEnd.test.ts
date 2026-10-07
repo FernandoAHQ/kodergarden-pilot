@@ -42,4 +42,7 @@ const workspaceRoute = routeDragEnd(
 );
 assert(workspaceRoute.action === "move" && workspaceRoute.statementId === "m1", "workspace moves still require an authored statement ID");
 
-console.log("editor drag end: 10 tests passed");
+const ifElseCard = createPaletteStatement("ifElsePathAhead", () => "choice");
+assert(ifElseCard.type === "ifElsePathAhead" && ifElseCard.thenBody.length === 0 && ifElseCard.elseBody.length === 0, "palette creates an empty two-branch If / Else block");
+
+console.log("editor drag end: 11 tests passed");

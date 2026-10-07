@@ -35,10 +35,14 @@ export function executeProgram<TSnapshot extends RuntimeSnapshot>(program: Progr
       events.push({ type: "statementStarted", path, statementType: statement.type });
       if (statement.type === "repeat") {
         for (let iteration = 0; iteration < statement.count && !stoppedByLimit; iteration += 1) execute(statement.body, path);
-      } else if (statement.type === "if") {
+      } else if (statement.type === "if" || statement.type === "ifElse") {
         const result = runtime.pathAhead();
         events.push({ type: "conditionEvaluated", path, conditionType: statement.condition.type, result });
-        if (result) execute(statement.body, path);
+        if (statement.type === "if") {
+          if (result) execute(statement.body, path);
+        } else {
+          execute(result ? statement.thenBody : statement.elseBody, path);
+        }
       } else {
         if (executionSteps >= limits.maxSteps) {
           stoppedByLimit = true;

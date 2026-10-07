@@ -20,4 +20,9 @@ assert(
 const candidate: unknown = JSON.parse(JSON.stringify(program([{ type: "moveForward" }])));
 assert(validateProgram(candidate).ok, "accepts a serialized program");
 
-console.log("language: 4 tests passed");
+const ifElse = { version: 2, statements: [{ type: "ifElse", condition: { type: "pathAhead" }, thenBody: [{ type: "moveForward" }], elseBody: [{ type: "turnRight" }] }] };
+assert(validateProgram(ifElse).ok, "accepts If / Else in a version 2 program");
+assert(!validateProgram({ ...ifElse, version: 1 }).ok, "rejects If / Else in a version 1 program");
+assert(countBlocks(ifElse as Parameters<typeof countBlocks>[0]) === 3, "counts both authored If / Else branches");
+
+console.log("language: 7 tests passed");
