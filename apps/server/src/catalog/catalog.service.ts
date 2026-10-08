@@ -27,12 +27,12 @@ export class CatalogService {
   async campaign(slug: string, localeInput?: string): Promise<CampaignResponseV1> {
     const row = (await this.publishedRows()).find(({ campaign }) => campaign.slug === slug);
     if (!row) throw new NotFoundException("Campaign not found");
-    return { version: 1, campaign: this.mapCampaign(row.campaign, row.revision, localeOf(localeInput)) };
+    return { version: 1, campaign: this.mapRevision(row.campaign, row.revision, localeOf(localeInput)) };
   }
 
   async allCampaigns(locale = "en"): Promise<readonly CatalogCampaignDefinition[]> {
     const rows = await this.publishedRows();
-    return rows.map(({ campaign, revision }) => this.mapCampaign(campaign, revision, localeOf(locale)));
+    return rows.map(({ campaign, revision }) => this.mapRevision(campaign, revision, localeOf(locale)));
   }
 
   async isReady(): Promise<boolean> {
@@ -49,7 +49,7 @@ export class CatalogService {
     return rows.sort((left, right) => left.revision.order - right.revision.order);
   }
 
-  private mapCampaign(campaign: CampaignEntity, revision: CampaignRevisionEntity, locale: "en" | "es"): CatalogCampaignDefinition {
+  mapRevision(campaign: CampaignEntity, revision: CampaignRevisionEntity, locale: "en" | "es"): CatalogCampaignDefinition {
     const translation = this.translation(revision.translations, locale);
     const challenges = [...revision.challenges].sort((a, b) => a.order - b.order).map((challenge): PracticeChallengeDefinition => {
       const copy = this.translation(challenge.translations, locale);

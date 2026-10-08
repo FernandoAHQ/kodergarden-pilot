@@ -1,15 +1,24 @@
-import { Controller, Get, Header, Req } from "@nestjs/common";
-import type { AdminCatalogResponseV1 } from "@kodergarden/shared";
-import { CatalogService } from "../catalog/catalog.service.js";
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import type { AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, CampaignResponseV1 } from "@kodergarden/shared";
+import { AdminCatalogService } from "../catalog/admin-catalog.service.js";
 import { AuthService, type RequestLike } from "./auth.service.js";
 
 @Controller("api/admin")
 export class AdminController {
-  constructor(private readonly auth: AuthService, private readonly catalog: CatalogService) {}
+  constructor(private readonly auth: AuthService, private readonly catalog: AdminCatalogService) {}
   @Get("catalog") @Header("Cache-Control", "no-store")
   async catalogOverview(@Req() request: RequestLike): Promise<AdminCatalogResponseV1> {
     await this.auth.current(request);
-    const catalog = await this.catalog.summaries("en");
-    return { version: 1, campaigns: catalog.campaigns };
+    return this.catalog.overview();
   }
+  @Post("campaigns/:slug/drafts") @Header("Cache-Control", "no-store")
+  async createDraft(@Param("slug") slug:string,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.createDraft(slug,user.id);}
+  @Get("drafts/:id") @Header("Cache-Control", "no-store")
+  async draft(@Param("id") id:string,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{await this.auth.current(request);return this.catalog.draft(id);}
+  @Patch("drafts/:id") @Header("Cache-Control", "no-store")
+  async updateDraft(@Param("id") id:string,@Body() body:AdminDraftUpdateV1,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.updateDraft(id,body,user.id);}
+  @Get("drafts/:id/preview") @Header("Cache-Control", "no-store")
+  async preview(@Param("id") id:string,@Query("locale") locale:string|undefined,@Req() request:RequestLike):Promise<CampaignResponseV1>{await this.auth.current(request);return this.catalog.preview(id,locale);}
+  @Post("drafts/:id/publish") @Header("Cache-Control", "no-store")
+  async publish(@Param("id") id:string,@Req() request:RequestLike):Promise<CampaignResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.publish(id,user.id);}
 }

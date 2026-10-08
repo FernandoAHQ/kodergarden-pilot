@@ -7,10 +7,13 @@ import { CatalogService } from "./catalog.service.js";
 import { authEntities, AdminSessionEntity, AdminUserEntity } from "../auth/auth.entities.js";
 import { seedAdmin } from "../auth/seed-admin.js";
 import { AuthService, type ResponseLike } from "../auth/auth.service.js";
+import { CurriculumDrafts1791396000000 } from "../migrations/1791396000000-CurriculumDrafts.js";
+import { AdminCatalogService } from "./admin-catalog.service.js";
+import { CurriculumAuditEventEntity } from "./catalog.entities.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/kodergarden_test(?:\?|$)/.test(url)) throw new Error("Database tests require a DATABASE_URL whose database is named kodergarden_test");
-const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000], synchronize: false });
+const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000], synchronize: false });
 await dataSource.initialize();
 try {
   await dataSource.dropDatabase(); await dataSource.runMigrations();
@@ -33,5 +36,6 @@ try {
   if((await auth.current(request)).user.id!==session.user.id)throw new Error("issued admin session must authenticate");
   await auth.logout(request,response);
   let rejected=false;try{await auth.current(request);}catch{rejected=true;}if(!rejected)throw new Error("logout must revoke the admin session");
-  console.log("database: catalog and admin migration, seed, constraints, mapping, and session lifecycle passed");
+  const admin=await dataSource.getRepository(AdminUserEntity).findOneByOrFail({email:"team@example.com"});const adminCatalog=new AdminCatalogService(dataSource,service);const original=(await service.campaign("foundations","en")).campaign;const created=await adminCatalog.createDraft("foundations",admin.id);if(created.draft.version!==2)throw new Error("draft must increment the published version");const changed={...created.draft,translations:{...created.draft.translations,en:{...created.draft.translations.en,title:"Foundations revised"}}};await adminCatalog.updateDraft(created.draft.id,{order:changed.order,translations:changed.translations,challenges:changed.challenges},admin.id);if((await service.campaign("foundations","en")).campaign.titleKey!==original.titleKey)throw new Error("draft edits must not reach learners");if((await adminCatalog.preview(created.draft.id,"en")).campaign.titleKey!=="Foundations revised")throw new Error("draft preview must expose draft copy");const published=await adminCatalog.publish(created.draft.id,admin.id);if(published.campaign.revisionId===original.revisionId||(await service.campaign("foundations","en")).campaign.titleKey!=="Foundations revised")throw new Error("publish must atomically advance the learner revision");if(await dataSource.getRepository(CurriculumAuditEventEntity).countBy({revisionId:created.draft.id})!==3)throw new Error("draft lifecycle must be audited");
+  console.log("database: catalog, admin sessions, draft isolation, preview, audit, and atomic publishing passed");
 } finally { await dataSource.destroy(); }

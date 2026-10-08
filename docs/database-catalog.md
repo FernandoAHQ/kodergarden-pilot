@@ -39,7 +39,9 @@ Supported seed locales are `en` and `es`; unsupported locale values fall back to
 
 ## Team admin
 
-After running `admin:seed`, open `/admin`. The command creates the user only when the normalized email does not already exist; it never resets an existing password. Admin sessions expire after 12 hours and use an opaque, HttpOnly, `SameSite=Strict` cookie. Production cookies require HTTPS. The current admin catalog is read-only; draft editing and publishing are a later milestone.
+After running `admin:seed`, open `/admin`. The command creates the user only when the normalized email does not already exist; it never resets an existing password. Admin sessions expire after 12 hours and use an opaque, HttpOnly, `SameSite=Strict` cookie. Production cookies require HTTPS.
+
+An administrator can clone the current published campaign into one isolated draft, edit English and Spanish campaign/challenge copy, privately preview either locale, and publish the revision. Learner APIs never return drafts. Publication validates the complete campaign and atomically advances the campaign's published revision pointer. Draft creation, updates, and publication are recorded in `curriculum_audit_events`. Grid, program, tool, and limit editing remain intentionally outside this first authoring interface.
 
 ## Verification
 

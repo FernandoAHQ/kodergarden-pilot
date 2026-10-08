@@ -13,6 +13,7 @@ import { AuthService } from "./auth/auth.service.js";
 import { AuthController } from "./auth/auth.controller.js";
 import { AdminController } from "./auth/admin.controller.js";
 import { AdminPageController } from "./admin-page.controller.js";
+import { AdminCatalogService } from "./catalog/admin-catalog.service.js";
 
-@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), TypeOrmModule.forRoot(databaseOptions), TypeOrmModule.forFeature([...catalogEntities, ...authEntities])], controllers: [HealthController, CatalogController, AuthController, AdminController, AdminPageController], providers: [CatalogService, AuthService, LiveSessionService, LiveGateway] })
+@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), TypeOrmModule.forRoot(databaseOptions), TypeOrmModule.forFeature([...catalogEntities, ...authEntities])], controllers: [HealthController, CatalogController, AuthController, AdminController, AdminPageController], providers: [CatalogService, AdminCatalogService, AuthService, LiveSessionService, LiveGateway] })
 export class AppModule {}

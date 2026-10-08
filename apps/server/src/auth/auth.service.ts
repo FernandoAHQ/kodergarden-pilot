@@ -60,12 +60,12 @@ export class AuthService {
   }
 
   async logout(request: RequestLike, response: ResponseLike): Promise<void> {
-    const { session } = await this.current(request);
-    const csrf = request.headers["x-kodergarden-csrf"];
-    if (typeof csrf !== "string" || csrf !== session.csrfToken) throw new ForbiddenException("Invalid CSRF token");
+    const { session } = await this.requireCsrf(request);
     await this.sessions.delete(session.id);
     response.clearCookie(ADMIN_COOKIE, this.cookieOptions());
   }
+
+  async requireCsrf(request: RequestLike): Promise<{ session: AdminSessionEntity; user: AdminUserEntity }> { const current=await this.current(request);const csrf=request.headers["x-kodergarden-csrf"];if(typeof csrf!=="string"||csrf!==current.session.csrfToken)throw new ForbiddenException("Invalid CSRF token");return current; }
 
   private response(user: AdminUserEntity, csrfToken: string, expiresAt: Date): AdminSessionResponseV1 {
     return { version: 1, user: { id: user.id, email: user.email, displayName: user.displayName }, csrfToken, expiresAt: expiresAt.toISOString() };
