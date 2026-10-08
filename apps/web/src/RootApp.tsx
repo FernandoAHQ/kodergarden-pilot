@@ -56,17 +56,8 @@ export function RootApp() {
           <h1 id="home-title">{t("home.greeting")}</h1>
           <p>{t("home.prompt")}</p>
         </div>
-        <div className="adventure-hero__scene" aria-hidden="true">
-          <div className="pip-group">
-            <div className="pip-speech"><strong>{t("home.speechLead")}</strong><span>{t("home.speechBody")}</span></div>
-            <img className="pip-hero" src={pipHero} alt="" />
-          </div>
-          <div className="code-stack">
-            <span className="code-block code-block--move">➜ <b>{t("home.block.move")}</b></span>
-            <span className="code-block code-block--repeat">⟳ <b>{t("home.block.repeat")}</b></span>
-            <span className="code-block code-block--condition">◆ <b>{t("home.block.condition")}</b></span>
-            <span className="code-block code-block--run">⚑ <b>{t("home.block.run")}</b></span>
-          </div>
+        <div className="tech-garden-pip" aria-hidden="true">
+          <img src={pipHero} alt="" />
         </div>
       </section>
       <section className="adventure-grid" aria-label={t("home.experiencesLabel")}>
