@@ -12,5 +12,6 @@ export interface ProgramRuntime<TSnapshot extends RuntimeSnapshot = RuntimeSnaps
   moveForward(): RuntimeEffect;
   turnLeft(): RuntimeEffect;
   turnRight(): RuntimeEffect;
-  pathAhead(): boolean;
+  pathOpen(direction: PathDirection): boolean;
 }
+import type { PathDirection } from "@kodergarden/language";

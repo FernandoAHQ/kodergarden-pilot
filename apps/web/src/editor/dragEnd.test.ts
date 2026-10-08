@@ -23,10 +23,10 @@ const repeatProgram: EditorProgram = { statements: [{ id: "repeat-1", type: "rep
 const repeatRoute = routeDragEnd({ id: "palette:moveForward", data: { source: "palette", kind: "moveForward" } }, { id: "drop:repeat-1:0" }, 1);
 const repeatInserted = repeatRoute.action === "insert" ? insertStatement(repeatProgram, repeatRoute.destination, createPaletteStatement(repeatRoute.kind, () => "repeat-move")) : repeatProgram;
 assert(repeatInserted.statements[0]?.type === "repeat" && repeatInserted.statements[0].body[0]?.id === "repeat-move", "palette drop inserts into Repeat body");
-const ifProgram: EditorProgram = { statements: [{ id: "if-1", type: "ifPathAhead", body: [] }] };
+const ifProgram: EditorProgram = { statements: [{ id: "if-1", type: "if", condition: "ahead", body: [] }] };
 const ifRoute = routeDragEnd({ id: "palette:moveForward", data: { source: "palette", kind: "moveForward" } }, { id: "drop:if-1:0" }, 1);
 const ifInserted = ifRoute.action === "insert" ? insertStatement(ifProgram, ifRoute.destination, createPaletteStatement(ifRoute.kind, () => "if-move")) : ifProgram;
-assert(ifInserted.statements[0]?.type === "ifPathAhead" && ifInserted.statements[0].body[0]?.id === "if-move", "palette drop inserts into If body");
+assert(ifInserted.statements[0]?.type === "if" && ifInserted.statements[0].body[0]?.id === "if-move", "palette drop inserts into If body");
 
 const desktopRoute = routeDragEnd(
   { id: "palette:turn", data: { origin: "palette", kind: "turn" } },
@@ -42,7 +42,9 @@ const workspaceRoute = routeDragEnd(
 );
 assert(workspaceRoute.action === "move" && workspaceRoute.statementId === "m1", "workspace moves still require an authored statement ID");
 
-const ifElseCard = createPaletteStatement("ifElsePathAhead", () => "choice");
-assert(ifElseCard.type === "ifElsePathAhead" && ifElseCard.thenBody.length === 0 && ifElseCard.elseBody.length === 0, "palette creates an empty two-branch If / Else block");
+const ifElseCard = createPaletteStatement("ifElse", () => "choice");
+assert(ifElseCard.type === "ifElse" && ifElseCard.thenBody.length === 0 && ifElseCard.elseBody.length === 0, "palette creates an empty two-branch If / Else block");
+assert(createPaletteStatement("while", () => "while").type === "while", "palette creates While");
+assert(createPaletteStatement("repeatUntilGoal", () => "until").type === "repeatUntilGoal", "palette creates Repeat Until Battery");
 
-console.log("editor drag end: 11 tests passed");
+console.log("editor drag end: 13 tests passed");

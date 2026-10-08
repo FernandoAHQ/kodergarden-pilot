@@ -49,7 +49,7 @@ export function GridWorld({ world, playback, hideStatus = false }: { readonly wo
       </div>
       {!hideStatus&&<div className={`world-status world-status--${playback.status}`} aria-live="polite">
         <span className="status-face">{playback.status === "success" ? "✓" : playback.collision ? "!" : playback.status === "running" ? "▶" : "•"}</span>
-        <div><strong>{playback.conditionResult ? t(playback.conditionResult.result?"sim.conditionYes":"sim.conditionNo") : playback.status==="ready"?t("sim.ready"):playback.status==="running"?(playback.collision?t("sim.blocked"):t("sim.running")):playback.status==="success"?t("sim.success"):playback.status==="limit"?t("sim.limit"):t("sim.incomplete")}</strong><small>{playback.executionSteps} {t("common.steps")}</small></div>
+        <div><strong>{playback.conditionResult ? t(playback.conditionResult.condition.type==="goalReached"?(playback.conditionResult.result?"sim.goalConditionYes":"sim.goalConditionNo"):playback.conditionResult.result?`sim.condition.${playback.conditionResult.condition.direction}.yes`:`sim.condition.${playback.conditionResult.condition.direction}.no`) : playback.status==="ready"?t("sim.ready"):playback.status==="running"?(playback.collision?t("sim.blocked"):t("sim.running")):playback.status==="success"?t("sim.success"):playback.status==="limit"?t("sim.limit"):t("sim.incomplete")}</strong><small>{playback.executionSteps} {t("common.steps")}</small></div>
       </div>}
     </div>
   );

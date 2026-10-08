@@ -1,4 +1,5 @@
 import type { ExecutionEvent, GridSnapshot } from "@kodergarden/engine";
+import type { EvaluatedCondition } from "@kodergarden/language";
 
 export type PlaybackStatus = "ready" | "running" | "success" | "incomplete" | "limit";
 export interface PlaybackState {
@@ -7,7 +8,7 @@ export interface PlaybackState {
   readonly status: PlaybackStatus;
   readonly message: string;
   readonly collision: "boundary" | "obstacle" | null;
-  readonly conditionResult: { readonly path: readonly number[]; readonly result: boolean } | null;
+  readonly conditionResult: { readonly path: readonly number[]; readonly condition: EvaluatedCondition; readonly result: boolean } | null;
   readonly executionSteps: number;
 }
 
@@ -28,7 +29,7 @@ export function applyExecutionEvent(state: PlaybackState, event: ExecutionEvent<
     case "statementStarted":
       return { ...state, activePath: event.path, collision: null, conditionResult: null };
     case "conditionEvaluated":
-      return { ...state, conditionResult: { path: event.path, result: event.result }, message: event.result ? "Path ahead → YES" : "Path ahead → NO" };
+      return { ...state, conditionResult: { path: event.path, condition: event.condition, result: event.result }, message: event.result ? "Condition → YES" : "Condition → NO" };
     case "statementCompleted":
       return { ...state, activePath: null };
     case "runtimeEffect":

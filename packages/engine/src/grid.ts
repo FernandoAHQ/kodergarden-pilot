@@ -1,3 +1,4 @@
+import type { PathDirection } from "@kodergarden/language";
 import type { ProgramRuntime, RuntimeEffect, RuntimeSnapshot } from "./runtime.js";
 
 export type Direction = "north" | "east" | "south" | "west";
@@ -47,8 +48,10 @@ export class GridRuntime implements ProgramRuntime<GridSnapshot> {
   }
   turnLeft(): RuntimeEffect { return this.turn(-1); }
   turnRight(): RuntimeEffect { return this.turn(1); }
-  pathAhead(): boolean {
-    const change = delta[this.robot.direction];
+  pathOpen(relative: PathDirection): boolean {
+    const offset = relative === "left" ? -1 : relative === "right" ? 1 : 0;
+    const direction = directions[(directions.indexOf(this.robot.direction) + offset + directions.length) % directions.length]!;
+    const change = delta[direction];
     return this.blockReason({ x: this.robot.x + change.x, y: this.robot.y + change.y }) === undefined;
   }
   private turn(offset: number): RuntimeEffect {

@@ -13,7 +13,7 @@ state = applyExecutionEvent(state, { type: "runtimeEffect", path: [0], effect: {
 assert(state.snapshot.robot.x === 1 && state.executionSteps === 1, "applies runtime snapshots without simulation logic");
 state = applyExecutionEvent(state, { type: "runtimeEffect", path: [1], effect: { type: "blocked", reason: "obstacle" }, state: moved });
 assert(state.collision === "obstacle" && state.executionSteps === 2, "exposes collision feedback");
-state = applyExecutionEvent(state, { type: "conditionEvaluated", path: [2], conditionType: "pathAhead", result: false });
+state = applyExecutionEvent(state, { type: "conditionEvaluated", path: [2], condition: { type: "path", direction: "left" }, result: false });
 assert(state.conditionResult?.result === false && state.message.includes("NO"), "exposes condition evaluation feedback");
 assert(playbackDelay({ type: "programStarted", state: snapshot }, 2) < playbackDelay({ type: "programStarted", state: snapshot }, 1), "speed only changes playback timing");
 

@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { closestCenter, DndContext, DragOverlay, MeasuringStrategy, MouseSensor, pointerWithin, rectIntersection, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type CollisionDetection, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { DEFAULT_PROGRAM_LIMITS } from "@kodergarden/language";
+import { DEFAULT_PROGRAM_LIMITS, type PathDirection } from "@kodergarden/language";
 import { useI18n } from "../i18n.js";
 import { createEditorId, createPaletteStatement, routeDragEnd, type PaletteKind } from "./dragEnd.js";
-import { deleteStatement, elseContainerId, findLocation, insertStatement, moveStatement, thenContainerId, updateRepeatCount, updateTurn, type EditorLocation, type EditorProgram, type EditorStatement } from "./model.js";
+import { deleteStatement, elseContainerId, findLocation, insertStatement, moveStatement, thenContainerId, updateCondition, updateRepeatCount, updateTurn, type EditorLocation, type EditorProgram, type EditorStatement } from "./model.js";
 
 const pathEquals = (a: readonly number[], b: readonly number[] | null): boolean => b !== null && a.length === b.length && a.every((value, index) => value === b[index]);
 const canvasDropId = "drop:root:canvas";
@@ -49,11 +49,12 @@ interface NodeProps {
   readonly onDelete: (id: string) => void;
   readonly onTurn: (id: string, direction: "left" | "right") => void;
   readonly onCount: (id: string, count: number) => void;
+  readonly onCondition: (id: string, condition: PathDirection) => void;
 }
 
 function EditorNode(props: NodeProps) {
   const {t}=useI18n();
-  const { statement, path, activePath, conditionResult, selectedId, disabled, onSelect, onDelete, onTurn, onCount } = props;
+  const { statement, path, activePath, conditionResult, selectedId, disabled, onSelect, onDelete, onTurn, onCount, onCondition } = props;
   const drag = useDraggable({ id: `node:${statement.id}`, disabled, data: { origin: "workspace", statementId: statement.id } });
   const active = pathEquals(path, activePath);
   const selected = statement.id === selectedId;
@@ -72,28 +73,35 @@ function EditorNode(props: NodeProps) {
     </div>
   </article>;
 
-  if (statement.type === "ifPathAhead") {
+  const conditionSelect = (condition: PathDirection) => <select className="condition-select" aria-label={t("editor.condition")} value={condition} disabled={disabled} {...noDrag} onClick={(event) => event.stopPropagation()} onChange={(event) => onCondition(statement.id, event.target.value as PathDirection)}><option value="ahead">{t("editor.pathAhead")}</option><option value="left">{t("editor.pathLeft")}</option><option value="right">{t("editor.pathRight")}</option></select>;
+
+  if (statement.type === "if" || statement.type === "while") {
     const evaluation = conditionResult && pathEquals(path, conditionResult.path) ? conditionResult.result : null;
     return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
-      <header className="if-header">{handle}<span className="node-icon">◇</span><div><strong>{t("editor.if")}</strong><span className="condition-label">{t("editor.pathAhead")}</span></div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
+      <header className="if-header">{handle}<span className="node-icon">{statement.type === "while" ? "⟳" : "◇"}</span><div><strong>{t(statement.type === "while" ? "editor.while" : "editor.if")}</strong>{conditionSelect(statement.condition)}</div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
       <div className="if-body" {...noDrag} onClick={stopDrag}><div className="branch-label"><span>{t("editor.then")}</span><i /></div><DropSlot location={{ containerId: statement.id, index: 0 }} roomy={statement.body.length === 0} tone="if" />
         {statement.body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId: statement.id, index: index + 1 }} tone="if" /></div>)}
       </div>
     </article>;
   }
 
-  if (statement.type === "ifElsePathAhead") {
+  if (statement.type === "ifElse") {
     const evaluation = conditionResult && pathEquals(path, conditionResult.path) ? conditionResult.result : null;
     const branch = (label: string, body: readonly EditorStatement[], containerId: string, activeBranch: boolean) => <div className={`if-body if-else-branch ${activeBranch ? "is-active-branch" : ""}`} {...noDrag} onClick={stopDrag}>
       <div className="branch-label"><span>{label}</span><i /></div><DropSlot location={{ containerId, index: 0 }} roomy={body.length === 0} tone="if" />
       {body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId, index: index + 1 }} tone="if" /></div>)}
     </div>;
-    return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} editor-node--ifPathAhead ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
-      <header className="if-header">{handle}<span className="node-icon">◇</span><div><strong>{t("editor.if")}</strong><span className="condition-label">{t("editor.pathAhead")}</span></div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
+    return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} editor-node--if ${evaluation === true ? "condition-true" : evaluation === false ? "condition-false" : ""}`} style={style} onClick={() => onSelect(statement.id)}>
+      <header className="if-header">{handle}<span className="node-icon">◇</span><div><strong>{t("editor.ifElse")}</strong>{conditionSelect(statement.condition)}</div><span className={`condition-result ${evaluation === null ? "" : "is-visible"}`}>{evaluation === null ? t("editor.check") : evaluation ? `${t("editor.yes")} ✓` : `${t("editor.no")} ×`}</span>{remove}</header>
       {branch(t("editor.then"), statement.thenBody, thenContainerId(statement.id), evaluation === true)}
       {branch(t("editor.else"), statement.elseBody, elseContainerId(statement.id), evaluation === false)}
     </article>;
   }
+
+  if (statement.type === "repeatUntilGoal") return <article ref={drag.setNodeRef} {...drag.listeners} className={`${common} editor-node--repeat`} style={style} onClick={() => onSelect(statement.id)}>
+    <header className="repeat-header">{handle}<span className="node-icon">◎</span><strong>{t("editor.repeatUntilBattery")}</strong>{remove}</header>
+    <div className="repeat-body" {...noDrag} onClick={stopDrag}><DropSlot location={{ containerId: statement.id, index: 0 }} roomy={statement.body.length === 0} tone="repeat" />{statement.body.map((child, index) => <div key={child.id}><EditorNode {...props} statement={child} path={[...path, index]} /><DropSlot location={{ containerId: statement.id, index: index + 1 }} tone="repeat" /></div>)}</div>
+  </article>;
 
   return <article ref={drag.setNodeRef} {...drag.listeners} className={common} style={style} onClick={() => onSelect(statement.id)}>
     {handle}<span className="node-icon">{statement.type === "moveForward" ? "↑" : statement.direction === "left" ? "↶" : "↷"}</span>
@@ -152,18 +160,18 @@ export function VisualEditor({ program, allowed, onChange, activePath, condition
     <aside className="instruction-palette">
       <div className="section-kicker">{t("editor.palette")}</div><h2>{t("editor.blocks")}</h2><p>{t("editor.drag")}</p>
       {allowed.some(x=>x==="moveForward"||x==="turn")&&<><h3>{t("editor.movement")}</h3>{allowed.includes("moveForward")&&<PaletteCard kind="moveForward" icon="↑" title={t("editor.moveForward")} detail={t("editor.moveDetail")} disabled={disabled} />}{allowed.includes("turn")&&<PaletteCard kind="turn" icon="↷" title={t("editor.turn")} detail={t("editor.turnDetail")} disabled={disabled} />}</>}
-      {allowed.includes("repeat")&&<><h3>{t("editor.control")}</h3><PaletteCard kind="repeat" icon="↻" title={t("editor.repeat")} detail={t("editor.repeatDetail")} disabled={disabled} /></>}
-      {allowed.some(x=>x==="ifPathAhead"||x==="ifElsePathAhead")&&<><h3>{t("editor.logic")}</h3>{allowed.includes("ifPathAhead")&&<PaletteCard kind="ifPathAhead" icon="◇" title={t("editor.ifPathAhead")} detail={t("editor.ifDetail")} disabled={disabled} />}{allowed.includes("ifElsePathAhead")&&<PaletteCard kind="ifElsePathAhead" icon="◇" title={t("editor.ifElsePathAhead")} detail={t("editor.ifElseDetail")} disabled={disabled} />}</>}
+      {allowed.some(x=>x==="repeat"||x==="while"||x==="repeatUntilGoal")&&<><h3>{t("editor.control")}</h3>{allowed.includes("repeat")&&<PaletteCard kind="repeat" icon="↻" title={t("editor.repeat")} detail={t("editor.repeatDetail")} disabled={disabled} />}{allowed.includes("while")&&<PaletteCard kind="while" icon="⟳" title={t("editor.while")} detail={t("editor.whileDetail")} disabled={disabled} />}{allowed.includes("repeatUntilGoal")&&<PaletteCard kind="repeatUntilGoal" icon="◎" title={t("editor.repeatUntilBattery")} detail={t("editor.repeatUntilDetail")} disabled={disabled} />}</>}
+      {allowed.some(x=>x==="if"||x==="ifElse")&&<><h3>{t("editor.logic")}</h3>{allowed.includes("if")&&<PaletteCard kind="if" icon="◇" title={t("editor.if")} detail={t("editor.ifDetail")} disabled={disabled} />}{allowed.includes("ifElse")&&<PaletteCard kind="ifElse" icon="◇" title={t("editor.ifElse")} detail={t("editor.ifElseDetail")} disabled={disabled} />}</>}
       <div className="palette-tip"><span>✦</span><p>{t("editor.tip")}</p></div>
     </aside>
     <section className="program-editor" tabIndex={0} onKeyDown={(event) => { if (!disabled && selectedId && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); remove(selectedId); } }}>
       <div className="editor-heading"><div><div className="section-kicker">{t("editor.yourProgram")}</div><h2>{t("editor.route")}</h2></div><div className="editor-actions"><button onClick={onUndo} disabled={!canUndo || disabled} title={t("common.undo")}>↶</button><button onClick={onRedo} disabled={!canRedo || disabled} title={t("common.redo")}>↷</button><button onClick={onRestore} disabled={disabled}>{t("common.restore")}</button></div></div>
       <ProgramCanvas endIndex={program.statements.length} onClear={() => setSelectedId(null)}>
         <DropSlot location={{ containerId: null, index: 0 }} roomy={program.statements.length === 0} />
-        {program.statements.map((statement, index) => <div key={statement.id}><EditorNode statement={statement} path={[index]} activePath={activePath} conditionResult={conditionResult} selectedId={selectedId} disabled={disabled} onSelect={setSelectedId} onDelete={remove} onTurn={(id, direction) => change(updateTurn(program, id, direction))} onCount={(id, count) => change(updateRepeatCount(program, id, count))} /><DropSlot location={{ containerId: null, index: index + 1 }} /></div>)}
+        {program.statements.map((statement, index) => <div key={statement.id}><EditorNode statement={statement} path={[index]} activePath={activePath} conditionResult={conditionResult} selectedId={selectedId} disabled={disabled} onSelect={setSelectedId} onDelete={remove} onTurn={(id, direction) => change(updateTurn(program, id, direction))} onCount={(id, count) => change(updateRepeatCount(program, id, count))} onCondition={(id, condition) => change(updateCondition(program, id, condition))} /><DropSlot location={{ containerId: null, index: index + 1 }} /></div>)}
       </ProgramCanvas>
       <div className="editor-foot"><span>{t("editor.topLevel",{count:program.statements.length})}</span><span>{selectedId ? t("editor.selected") : t("editor.selectHint")}</span></div>
     </section>
-    <DragOverlay>{dragLabel && <div className={`drag-preview drag-preview--${dragLabel}`}>{dragLabel === "moveForward" ? `↑ ${t("editor.moveForward")}` : dragLabel === "turn" ? `↷ ${t("editor.turn")}` : dragLabel === "repeat" ? `↻ ${t("editor.repeat")}` : dragLabel === "ifPathAhead" ? `◇ ${t("editor.ifPathAhead")}` : dragLabel === "ifElsePathAhead" ? `◇ ${t("editor.ifElsePathAhead")}` : t("editor.dragInstruction")}</div>}</DragOverlay>
+    <DragOverlay>{dragLabel && <div className={`drag-preview drag-preview--${dragLabel}`}>{dragLabel === "moveForward" ? `↑ ${t("editor.moveForward")}` : dragLabel === "turn" ? `↷ ${t("editor.turn")}` : dragLabel === "repeat" ? `↻ ${t("editor.repeat")}` : dragLabel === "if" ? `◇ ${t("editor.if")}` : dragLabel === "ifElse" ? `◇ ${t("editor.ifElse")}` : dragLabel === "while" ? `⟳ ${t("editor.while")}` : dragLabel === "repeatUntilGoal" ? `◎ ${t("editor.repeatUntilBattery")}` : t("editor.dragInstruction")}</div>}</DragOverlay>
   </DndContext>;
 }

@@ -9,22 +9,24 @@ import { seedAdmin } from "../auth/seed-admin.js";
 import { AuthService, type ResponseLike } from "../auth/auth.service.js";
 import { CurriculumDrafts1791396000000 } from "../migrations/1791396000000-CurriculumDrafts.js";
 import { TeamRoles1791397000000 } from "../migrations/1791397000000-TeamRoles.js";
+import { ParameterizedControlFlow1791398000000 } from "../migrations/1791398000000-ParameterizedControlFlow.js";
 import { AdminCatalogService } from "./admin-catalog.service.js";
 import { CurriculumAuditEventEntity } from "./catalog.entities.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/kodergarden_test(?:\?|$)/.test(url)) throw new Error("Database tests require a DATABASE_URL whose database is named kodergarden_test");
-const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000, TeamRoles1791397000000], synchronize: false });
+const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000, TeamRoles1791397000000, ParameterizedControlFlow1791398000000], synchronize: false });
 await dataSource.initialize();
 try {
   await dataSource.dropDatabase(); await dataSource.runMigrations();
   await seedCatalog(dataSource); await seedCatalog(dataSource);
+  const migration=new ParameterizedControlFlow1791398000000();const runner=dataSource.createQueryRunner();await migration.down(runner);const legacyTools=await dataSource.query(`SELECT 1 FROM challenges WHERE allowed ? 'ifPathAhead' LIMIT 1`);if(!legacyTools.length)throw new Error("control-flow migration down must restore legacy tool ids");await migration.up(runner);await runner.release();const canonicalTools=await dataSource.query(`SELECT 1 FROM challenges WHERE allowed ? 'ifPathAhead' OR allowed ? 'ifElsePathAhead' LIMIT 1`);if(canonicalTools.length)throw new Error("control-flow migration must normalize legacy tool ids");
   const campaignRepo=dataSource.getRepository(CampaignEntity); const revisionRepo=dataSource.getRepository(CampaignRevisionEntity);
   const service=new CatalogService(campaignRepo,revisionRepo);
   const catalog=await service.summaries("en");
   if(catalog.campaigns.length!==2)throw new Error("seed must be idempotent");
   const foundations=(await service.campaign("foundations","es")).campaign;
-  if(foundations.challenges.length!==13||foundations.challenges[12]?.worldVariants?.length!==4)throw new Error("seeded catalog must preserve challenges and dynamic layouts");
+  if(foundations.challenges.length!==16||foundations.challenges[12]?.worldVariants?.length!==4||foundations.challenges[15]?.worldVariants?.length!==2)throw new Error("seeded catalog must preserve challenges and dynamic layouts");
   if(!foundations.revisionId)throw new Error("published campaign must expose a revision id");
   let duplicateRejected=false;try{await dataSource.query(`INSERT INTO campaign_revisions(campaign_id,version,status,kind,display_order) SELECT campaign_id,version,status,kind,display_order FROM campaign_revisions LIMIT 1`);}catch{duplicateRejected=true;}if(!duplicateRejected)throw new Error("revision uniqueness constraint missing");
   if(await seedAdmin(dataSource,"TEAM@EXAMPLE.COM","correct-horse-battery-staple","Team Admin")!=="created")throw new Error("first admin must be created");
