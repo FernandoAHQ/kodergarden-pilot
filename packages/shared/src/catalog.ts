@@ -51,6 +51,8 @@ export interface LocalizedCampaignCopy { readonly title: string; readonly descri
 export interface LocalizedChallengeCopy { readonly title: string; readonly instruction: string; readonly concept: string }
 export interface AdminDraftChallenge {
   readonly slug: string; readonly order: number;
+  readonly allowed: readonly import("./practice.js").EditorTool[];
+  readonly maxBlocks: number | null; readonly parBlocks: number | null; readonly parSteps: number | null;
   readonly translations: { readonly en: LocalizedChallengeCopy; readonly es: LocalizedChallengeCopy };
 }
 export interface AdminDraft {

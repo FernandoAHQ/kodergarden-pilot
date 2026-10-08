@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import type { AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, CampaignResponseV1 } from "@kodergarden/shared";
 import { AdminCatalogService } from "../catalog/admin-catalog.service.js";
 import { AuthService, type RequestLike } from "./auth.service.js";
@@ -21,4 +21,8 @@ export class AdminController {
   async preview(@Param("id") id:string,@Query("locale") locale:string|undefined,@Req() request:RequestLike):Promise<CampaignResponseV1>{await this.auth.current(request);return this.catalog.preview(id,locale);}
   @Post("drafts/:id/publish") @Header("Cache-Control", "no-store")
   async publish(@Param("id") id:string,@Req() request:RequestLike):Promise<CampaignResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.publish(id,user.id);}
+  @Post("drafts/:id/challenges") @Header("Cache-Control", "no-store")
+  async duplicateChallenge(@Param("id") id:string,@Body() body:{sourceSlug?:string;slug?:string},@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.duplicateChallenge(id,body.sourceSlug??"",body.slug??"",user.id);}
+  @Delete("drafts/:id/challenges/:slug") @Header("Cache-Control", "no-store")
+  async removeChallenge(@Param("id") id:string,@Param("slug") slug:string,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.removeChallenge(id,slug,user.id);}
 }
