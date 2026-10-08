@@ -1,6 +1,6 @@
 import type { EditorLocation, EditorStatement } from "./model.js";
 
-export type PaletteKind = "moveForward" | "turn" | "repeat" | "ifPathAhead" | "ifElsePathAhead";
+export type PaletteKind = "moveForward" | "turn" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
 
 export interface DragEndItem {
   readonly id: string | number;
@@ -17,7 +17,7 @@ export type DragEndRoute =
   | { readonly action: "move"; readonly statementId: string; readonly destination: EditorLocation; readonly destinationSource: "metadata" | "id" }
   | { readonly action: "reject"; readonly stage: "active" | "destination"; readonly reason: string };
 
-const paletteKinds: readonly PaletteKind[] = ["moveForward", "turn", "repeat", "ifPathAhead", "ifElsePathAhead"];
+const paletteKinds: readonly PaletteKind[] = ["moveForward", "turn", "repeat", "if", "ifElse", "while", "repeatUntilGoal"];
 let editorIdSequence = 0;
 
 export function createEditorId(fillRandom?: (values: Uint32Array) => void, now: () => number = Date.now): string {
@@ -32,11 +32,15 @@ export const createPaletteStatement = (kind: PaletteKind, makeId: () => string):
   ? { id: makeId(), type: "moveForward" }
   : kind === "turn"
     ? { id: makeId(), type: "turn", direction: "right" }
-    : kind === "ifPathAhead"
-      ? { id: makeId(), type: "ifPathAhead", body: [] }
-      : kind === "ifElsePathAhead"
-        ? { id: makeId(), type: "ifElsePathAhead", thenBody: [], elseBody: [] }
-      : { id: makeId(), type: "repeat", count: 3, body: [] };
+    : kind === "if"
+      ? { id: makeId(), type: "if", condition: "ahead", body: [] }
+      : kind === "ifElse"
+        ? { id: makeId(), type: "ifElse", condition: "ahead", thenBody: [], elseBody: [] }
+        : kind === "while"
+          ? { id: makeId(), type: "while", condition: "ahead", body: [] }
+          : kind === "repeatUntilGoal"
+            ? { id: makeId(), type: "repeatUntilGoal", body: [] }
+            : { id: makeId(), type: "repeat", count: 3, body: [] };
 
 const isLocation = (value: unknown): value is EditorLocation => {
   if (!value || typeof value !== "object") return false;

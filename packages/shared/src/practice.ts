@@ -1,7 +1,7 @@
 import type { GridWorldDefinition } from "@kodergarden/engine";
-import { program, type Program, type Statement } from "@kodergarden/language";
+import { program, programV3, type PathDirection, type Program, type Statement } from "@kodergarden/language";
 
-export type EditorTool = "moveForward" | "turn" | "repeat" | "ifPathAhead" | "ifElsePathAhead";
+export type EditorTool = "moveForward" | "turn" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
 export type CampaignId = string;
 export type CampaignKind = "guided" | "advanced";
 
@@ -50,7 +50,8 @@ const left = (): Statement => ({ type: "turnLeft" });
 const right = (): Statement => ({ type: "turnRight" });
 const repeat = (count: number, body: readonly Statement[]): Statement => ({ type: "repeat", count, body });
 const ifPath = (body: readonly Statement[]): Statement => ({ type: "if", condition: { type: "pathAhead" }, body });
-const allTools: readonly EditorTool[] = ["moveForward", "turn", "repeat", "ifPathAhead"];
+const path = (direction: PathDirection) => ({ type: "path", direction } as const);
+const allTools: readonly EditorTool[] = ["moveForward", "turn", "repeat", "if"];
 
 export function resolveChallengeWorld(challenge: PracticeChallengeDefinition, layoutId: string | null | undefined): GridWorldDefinition {
   return challenge.worldVariants?.find((variant) => variant.id === layoutId)?.world ?? challenge.world;
@@ -75,15 +76,28 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "repeat-turn", campaignId: "foundations", order: 7, type: "build", titleKey: "c.07.title", instructionKey: "c.07.instruction", conceptKey: "c.07.concept", world: world(7, 6, 1, 4, "east", 5, 2), allowed: ["moveForward", "turn", "repeat"], starter: empty() },
   { id: "efficient", campaignId: "foundations", order: 8, type: "build", titleKey: "c.08.title", instructionKey: "c.08.instruction", conceptKey: "c.08.concept", world: world(7, 5, 0, 3, "east", 5, 1), allowed: ["moveForward", "turn", "repeat"], starter: empty(), maxBlocks: 6 },
   { id: "pattern", campaignId: "foundations", order: 9, type: "build", titleKey: "c.09.title", instructionKey: "c.09.instruction", conceptKey: "c.09.concept", world: world(6, 6, 1, 4, "east", 4, 1), allowed: ["moveForward", "turn", "repeat"], starter: empty(), maxBlocks: 6 },
-  { id: "condition-01", campaignId: "foundations", order: 10, type: "build", titleKey: "c.10.title", instructionKey: "c.10.instruction", conceptKey: "c.10.concept", world: world(5, 3, 0, 1, "east", 3, 1, [{ x: 4, y: 1 }]), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "if" },
-  { id: "condition-repeat", campaignId: "foundations", order: 11, type: "build", titleKey: "c.11.title", instructionKey: "c.11.instruction", conceptKey: "c.11.concept", world: world(6, 3, 0, 1, "east", 5, 1), allowed: ["moveForward", "repeat", "ifPathAhead"], starter: empty(), maxBlocks: 4 },
+  { id: "condition-01", campaignId: "foundations", order: 10, type: "build", titleKey: "c.10.title", instructionKey: "c.10.instruction", conceptKey: "c.10.concept", world: world(5, 3, 0, 1, "east", 3, 1, [{ x: 4, y: 1 }]), allowed: ["moveForward", "repeat", "if"], starter: empty(), maxBlocks: 4, unlockKey: "if" },
+  { id: "condition-repeat", campaignId: "foundations", order: 11, type: "build", titleKey: "c.11.title", instructionKey: "c.11.instruction", conceptKey: "c.11.concept", world: world(6, 3, 0, 1, "east", 5, 1), allowed: ["moveForward", "repeat", "if"], starter: empty(), maxBlocks: 4 },
   { id: "final", campaignId: "foundations", order: 12, type: "build", titleKey: "c.12.title", instructionKey: "c.12.instruction", conceptKey: "c.12.concept", world: world(7, 6, 1, 4, "east", 5, 1, [{ x: 3, y: 3 }, { x: 4, y: 3 }]), allowed: allTools, starter: empty(), maxBlocks: 9 },
   { id: "if-else", campaignId: "foundations", order: 13, type: "build", titleKey: "c.13.title", instructionKey: "c.13.instruction", conceptKey: "c.13.concept", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]), worldVariants: [
     { id: "turn-north", world: world(5, 5, 1, 3, "east", 1, 1, [{ x: 2, y: 3 }]) },
     { id: "turn-west", world: world(5, 5, 3, 3, "north", 1, 3, [{ x: 3, y: 2 }]) },
     { id: "turn-south", world: world(5, 5, 3, 1, "west", 3, 3, [{ x: 2, y: 1 }]) },
     { id: "turn-east", world: world(5, 5, 1, 1, "south", 3, 1, [{ x: 1, y: 2 }]) },
-  ], allowed: ["moveForward", "turn", "repeat", "ifElsePathAhead"], starter: empty(), maxBlocks: 4, unlockKey: "ifElse" },
+  ], allowed: ["moveForward", "turn", "repeat", "ifElse"], starter: empty(), maxBlocks: 4, unlockKey: "ifElse" },
+  { id: "directional-condition", campaignId: "foundations", order: 14, type: "build", titleKey: "c.14.title", instructionKey: "c.14.instruction", conceptKey: "c.14.concept", world: world(5, 5, 2, 3, "north", 0, 3, [{ x: 2, y: 2 }, { x: 3, y: 3 }]), worldVariants: [
+    { id: "left-open", world: world(5, 5, 2, 3, "north", 0, 3, [{ x: 2, y: 2 }, { x: 3, y: 3 }]) },
+    { id: "right-open", world: world(5, 5, 2, 3, "north", 4, 3, [{ x: 2, y: 2 }, { x: 1, y: 3 }]) },
+  ], allowed: ["moveForward", "turn", "repeat", "ifElse"], starter: empty(), maxBlocks: 5, unlockKey: "directions", referenceSolution: programV3([{ type: "ifElse", condition: path("left"), thenBody: [left()], elseBody: [right()] }, repeat(2, [move()])]) },
+  { id: "while-hallway", campaignId: "foundations", order: 15, type: "build", titleKey: "c.15.title", instructionKey: "c.15.instruction", conceptKey: "c.15.concept", world: world(5, 3, 0, 1, "east", 4, 1), worldVariants: [
+    { id: "short", world: world(4, 3, 0, 1, "east", 3, 1) },
+    { id: "medium", world: world(6, 3, 0, 1, "east", 5, 1) },
+    { id: "long", world: world(8, 3, 0, 1, "east", 7, 1) },
+  ], allowed: ["moveForward", "while"], starter: empty(), maxBlocks: 2, unlockKey: "while", referenceSolution: programV3([{ type: "while", condition: path("ahead"), body: [move()] }]) },
+  { id: "repeat-until-battery", campaignId: "foundations", order: 16, type: "build", titleKey: "c.16.title", instructionKey: "c.16.instruction", conceptKey: "c.16.concept", world: world(5, 5, 0, 3, "east", 2, 0, [{ x: 3, y: 3 }]), worldVariants: [
+    { id: "north-turn", world: world(5, 5, 0, 3, "east", 2, 0, [{ x: 3, y: 3 }]) },
+    { id: "east-turn", world: world(5, 5, 3, 0, "south", 4, 2, [{ x: 3, y: 3 }]) },
+  ], allowed: ["moveForward", "turn", "ifElse", "repeatUntilGoal"], starter: empty(), maxBlocks: 4, unlockKey: "repeatUntil", referenceSolution: programV3([{ type: "repeatUntilGoal", body: [{ type: "ifElse", condition: path("ahead"), thenBody: [move()], elseBody: [left()] }] }]) },
 ];
 
 export const gardenExpeditionChallenges: readonly PracticeChallengeDefinition[] = [
@@ -110,9 +124,9 @@ export const evaluatePracticeChallenge = (challenge: PracticeChallengeDefinition
 export const evaluateLiveChallenge = (challenge: PracticeChallengeDefinition, succeeded: boolean, blocks: number) => challenge.campaignId === "garden-expedition" ? { goalReached: succeeded, withinBlockLimit: true, complete: succeeded } : evaluatePracticeChallenge(challenge, succeeded, blocks);
 
 export function statementAllowed(statement: Statement, allowed: readonly EditorTool[]): boolean {
-  const own = statement.type === "moveForward" ? "moveForward" : statement.type === "turnLeft" || statement.type === "turnRight" ? "turn" : statement.type === "repeat" ? "repeat" : statement.type === "if" ? "ifPathAhead" : "ifElsePathAhead";
+  const own = statement.type === "moveForward" ? "moveForward" : statement.type === "turnLeft" || statement.type === "turnRight" ? "turn" : statement.type === "repeat" ? "repeat" : statement.type;
   if (!allowed.includes(own)) return false;
-  if (statement.type === "repeat" || statement.type === "if") return statement.body.every((child) => statementAllowed(child, allowed));
+  if (statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") return statement.body.every((child) => statementAllowed(child, allowed));
   if (statement.type === "ifElse") return [...statement.thenBody, ...statement.elseBody].every((child) => statementAllowed(child, allowed));
   return true;
 }

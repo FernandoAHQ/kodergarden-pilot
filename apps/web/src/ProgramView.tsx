@@ -16,14 +16,15 @@ const icon: Record<"moveForward" | "turnLeft" | "turnRight", string> = {
 
 function StatementCard({ statement, path, activePath }: { readonly statement: Statement; readonly path: readonly number[]; readonly activePath: readonly number[] | null }) {
   const active = samePath(path, activePath);
-  if (statement.type === "repeat" || statement.type === "if" || statement.type === "ifElse") {
+  if (statement.type === "repeat" || statement.type === "if" || statement.type === "ifElse" || statement.type === "while" || statement.type === "repeatUntilGoal") {
     const primaryBody = statement.type === "ifElse" ? statement.thenBody : statement.body;
+    const condition = statement.type === "if" || statement.type === "ifElse" || statement.type === "while" ? statement.condition.type === "pathAhead" ? "path ahead" : `path ${statement.condition.direction}` : "";
     return (
       <div className={`program-control ${active ? "is-active" : ""}`} data-path={path.join(".")}>
         <div className="program-control__header">
-          <span className="statement-icon">{statement.type === "repeat" ? "↻" : "?"}</span>
-          <span>{statement.type === "repeat" ? "REPEAT" : statement.type === "ifElse" ? "IF / ELSE" : "IF"}</span>
-          <strong>{statement.type === "repeat" ? `${statement.count} times` : "path ahead"}</strong>
+          <span className="statement-icon">{statement.type === "repeat" ? "↻" : statement.type === "while" ? "⟳" : statement.type === "repeatUntilGoal" ? "◎" : "?"}</span>
+          <span>{statement.type === "repeat" ? "REPEAT" : statement.type === "ifElse" ? "IF / ELSE" : statement.type === "while" ? "WHILE" : statement.type === "repeatUntilGoal" ? "REPEAT UNTIL BATTERY" : "IF"}</span>
+          <strong>{statement.type === "repeat" ? `${statement.count} times` : condition}</strong>
           <span className="running-dot" aria-hidden="true" />
         </div>
         <div className="program-control__body">

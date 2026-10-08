@@ -42,8 +42,26 @@ assert(falseIfElse.finalState.robot.direction === "north", "runs the Else branch
 const trueIfElse = executeProgram({ version: 2, statements: [{ type: "ifElse", condition: { type: "pathAhead" }, thenBody: [{ type: "moveForward" }], elseBody: [{ type: "turnRight" }] }] }, new GridRuntime(world));
 assert(trueIfElse.finalState.robot.y === 1, "runs the Then branch when the condition is true");
 
+for (const direction of ["north", "east", "south", "west"] as const) {
+  const sensor = new GridRuntime({ width: 3, height: 3, blocked: [{ x: 0, y: 1 }], robot: { x: 1, y: 1, direction }, goal: { x: 2, y: 2 } });
+  const expectedBlocked = direction === "north" ? "left" : direction === "south" ? "right" : direction === "west" ? "ahead" : null;
+  for (const relative of ["ahead", "left", "right"] as const) assert(sensor.pathOpen(relative) === (relative !== expectedBlocked), `${relative} sensing is relative to ${direction}`);
+}
+
+const hallway: GridWorldDefinition = { width: 4, height: 1, blocked: [], robot: { x: 0, y: 0, direction: "east" }, goal: { x: 3, y: 0 } };
+const whileResult = executeProgram({ version: 3, statements: [{ type: "while", condition: { type: "path", direction: "ahead" }, body: [{ type: "moveForward" }] }] }, new GridRuntime(hallway));
+assert(whileResult.succeeded && whileResult.executionSteps === 3, "While runs until its path condition becomes false");
+const zeroWhile = executeProgram({ version: 3, statements: [{ type: "while", condition: { type: "path", direction: "left" }, body: [{ type: "moveForward" }] }] }, new GridRuntime(hallway));
+assert(zeroWhile.executionSteps === 0, "While may execute zero times");
+const untilResult = executeProgram({ version: 3, statements: [{ type: "repeatUntilGoal", body: [{ type: "moveForward" }] }] }, new GridRuntime(hallway));
+assert(untilResult.succeeded && untilResult.executionSteps === 3, "Repeat Until stops as soon as the goal is reached");
+const alreadyComplete = executeProgram({ version: 3, statements: [{ type: "repeatUntilGoal", body: [{ type: "moveForward" }] }] }, new GridRuntime({ ...hallway, goal: { x: 0, y: 0 } }));
+assert(alreadyComplete.executionSteps === 0 && alreadyComplete.succeeded, "Repeat Until runs zero times when already complete");
+const nonProgressing = executeProgram({ version: 3, statements: [{ type: "while", condition: { type: "path", direction: "ahead" }, body: [] }] }, new GridRuntime(hallway), { maxSteps: 100, maxControlIterations: 3 });
+assert(nonProgressing.stoppedByLimit && nonProgressing.events.some((event) => event.type === "executionLimitReached" && event.reason === "controlIterations"), "control iteration limit stops an empty While loop");
+
 const limited = executeProgram(program([{ type: "repeat", count: 10, body: [{ type: "turnRight" }] }]), new GridRuntime(world), { maxSteps: 3 });
 assert(limited.stoppedByLimit && limited.executionSteps === 3, "stops at the execution limit");
 assert(limited.events.at(-1)?.type === "executionLimitReached", "emits the limit event");
 
-console.log("engine: 14 tests passed");
+console.log("engine: 33 tests passed");

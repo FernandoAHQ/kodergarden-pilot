@@ -26,7 +26,23 @@ export function validateProgram(
   const errors: string[] = [];
   let blocks = 0;
 
-  let version: 1 | 2 | undefined;
+  let version: 1 | 2 | 3 | undefined;
+  const validatePathCondition = (value: unknown, path: string, canonicalRequired = false): boolean => {
+    if (!isRecord(value)) {
+      errors.push(`${path} must be a path condition`);
+      return false;
+    }
+    if (value.type === "pathAhead" && !canonicalRequired) return true;
+    if (value.type !== "path" || value.direction !== "ahead" && value.direction !== "left" && value.direction !== "right") {
+      errors.push(`${path} must be path ahead, left, or right`);
+      return false;
+    }
+    if (version !== 3) {
+      errors.push(`${path} requires program.version 3`);
+      return false;
+    }
+    return true;
+  };
   const validateStatements = (
     value: unknown,
     path: string,
@@ -68,23 +84,32 @@ export function validateProgram(
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         case "if":
-          if (!isRecord(candidate.condition) || candidate.condition.type !== "pathAhead") {
-            errors.push(`${statementPath}.condition must be pathAhead`);
-            valid = false;
-          }
+          if (!validatePathCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         case "ifElse":
-          if (version !== 2) {
-            errors.push(`${statementPath}.type requires program.version 2`);
+          if (version !== 2 && version !== 3) {
+            errors.push(`${statementPath}.type requires program.version 2 or 3`);
             valid = false;
           }
-          if (!isRecord(candidate.condition) || candidate.condition.type !== "pathAhead") {
-            errors.push(`${statementPath}.condition must be pathAhead`);
-            valid = false;
-          }
+          if (!validatePathCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
           if (!validateStatements(candidate.thenBody, `${statementPath}.thenBody`, depth + 1)) valid = false;
           if (!validateStatements(candidate.elseBody, `${statementPath}.elseBody`, depth + 1)) valid = false;
+          break;
+        case "while":
+          if (version !== 3) {
+            errors.push(`${statementPath}.type requires program.version 3`);
+            valid = false;
+          }
+          if (!validatePathCondition(candidate.condition, `${statementPath}.condition`, true)) valid = false;
+          if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
+          break;
+        case "repeatUntilGoal":
+          if (version !== 3) {
+            errors.push(`${statementPath}.type requires program.version 3`);
+            valid = false;
+          }
+          if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         default:
           errors.push(`${statementPath}.type is not supported`);
@@ -95,7 +120,7 @@ export function validateProgram(
   };
 
   if (!isRecord(input)) return { ok: false, errors: ["program must be an object"] };
-  if (input.version !== 1 && input.version !== 2) errors.push("program.version must be 1 or 2");
+  if (input.version !== 1 && input.version !== 2 && input.version !== 3) errors.push("program.version must be 1, 2, or 3");
   else version = input.version;
   validateStatements(input.statements, "program.statements", 1);
 

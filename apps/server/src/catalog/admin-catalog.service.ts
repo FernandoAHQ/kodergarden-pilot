@@ -35,8 +35,10 @@ const editorTools: readonly EditorTool[] = [
   "moveForward",
   "turn",
   "repeat",
-  "ifPathAhead",
-  "ifElsePathAhead",
+  "if",
+  "ifElse",
+  "while",
+  "repeatUntilGoal",
 ];
 const text = (value: unknown, label: string, max: number) => {
   if (typeof value !== "string" || !value.trim() || value.length > max)
@@ -741,13 +743,17 @@ export class AdminCatalogService {
       else if (statement.type === "repeat") {
         tools.push("repeat", ...this.programTools(statement.body));
       } else if (statement.type === "if") {
-        tools.push("ifPathAhead", ...this.programTools(statement.body));
-      } else {
+        tools.push("if", ...this.programTools(statement.body));
+      } else if (statement.type === "ifElse") {
         tools.push(
-          "ifElsePathAhead",
+          "ifElse",
           ...this.programTools(statement.thenBody),
           ...this.programTools(statement.elseBody),
         );
+      } else if (statement.type === "while") {
+        tools.push("while", ...this.programTools(statement.body));
+      } else {
+        tools.push("repeatUntilGoal", ...this.programTools(statement.body));
       }
     }
     return tools;

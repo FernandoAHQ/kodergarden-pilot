@@ -1,11 +1,13 @@
-import { program, programV2, type Program, type Statement } from "@kodergarden/language";
+import { program, programV3, type PathDirection, type Program, type Statement } from "@kodergarden/language";
 
 export type EditorStatement =
   | { readonly id: string; readonly type: "moveForward" }
   | { readonly id: string; readonly type: "turn"; readonly direction: "left" | "right" }
   | { readonly id: string; readonly type: "repeat"; readonly count: number; readonly body: readonly EditorStatement[] }
-  | { readonly id: string; readonly type: "ifPathAhead"; readonly body: readonly EditorStatement[] }
-  | { readonly id: string; readonly type: "ifElsePathAhead"; readonly thenBody: readonly EditorStatement[]; readonly elseBody: readonly EditorStatement[] };
+  | { readonly id: string; readonly type: "if"; readonly condition: PathDirection; readonly body: readonly EditorStatement[] }
+  | { readonly id: string; readonly type: "ifElse"; readonly condition: PathDirection; readonly thenBody: readonly EditorStatement[]; readonly elseBody: readonly EditorStatement[] }
+  | { readonly id: string; readonly type: "while"; readonly condition: PathDirection; readonly body: readonly EditorStatement[] }
+  | { readonly id: string; readonly type: "repeatUntilGoal"; readonly body: readonly EditorStatement[] };
 export interface EditorProgram { readonly statements: readonly EditorStatement[] }
 export interface EditorLocation { readonly containerId: string | null; readonly index: number }
 export interface EditorHistory { readonly present: EditorProgram; readonly past: readonly EditorProgram[]; readonly future: readonly EditorProgram[] }
@@ -23,8 +25,8 @@ export const redoHistory = (history: EditorHistory): EditorHistory => {
 const mapTree = (statements: readonly EditorStatement[], targetId: string, transform: (statement: EditorStatement) => EditorStatement): readonly EditorStatement[] =>
   statements.map((statement) => {
     if (statement.id === targetId) return transform(statement);
-    if (statement.type === "repeat" || statement.type === "ifPathAhead") return { ...statement, body: mapTree(statement.body, targetId, transform) };
-    if (statement.type === "ifElsePathAhead") return { ...statement, thenBody: mapTree(statement.thenBody, targetId, transform), elseBody: mapTree(statement.elseBody, targetId, transform) };
+    if (statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") return { ...statement, body: mapTree(statement.body, targetId, transform) };
+    if (statement.type === "ifElse") return { ...statement, thenBody: mapTree(statement.thenBody, targetId, transform), elseBody: mapTree(statement.elseBody, targetId, transform) };
     return statement;
   });
 
@@ -35,11 +37,11 @@ export const getContainer = (editor: EditorProgram, containerId: string | null):
   if (containerId === null) return editor.statements;
   const visit = (statements: readonly EditorStatement[]): readonly EditorStatement[] | undefined => {
     for (const statement of statements) {
-      if (statement.type === "repeat" || statement.type === "ifPathAhead") {
+      if (statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") {
         if (statement.id === containerId) return statement.body;
         const nested = visit(statement.body);
         if (nested) return nested;
-      } else if (statement.type === "ifElsePathAhead") {
+      } else if (statement.type === "ifElse") {
         if (thenContainerId(statement.id) === containerId) return statement.thenBody;
         if (elseContainerId(statement.id) === containerId) return statement.elseBody;
         const nested = visit(statement.thenBody) ?? visit(statement.elseBody);
@@ -53,9 +55,9 @@ export const getContainer = (editor: EditorProgram, containerId: string | null):
 
 const replaceContainer = (editor: EditorProgram, containerId: string | null, statements: readonly EditorStatement[]): EditorProgram => {
   if (containerId === null) return { statements };
-  if (containerId.startsWith("then:")) return { statements: mapTree(editor.statements, containerId.slice(5), (statement) => statement.type === "ifElsePathAhead" ? { ...statement, thenBody: statements } : statement) };
-  if (containerId.startsWith("else:")) return { statements: mapTree(editor.statements, containerId.slice(5), (statement) => statement.type === "ifElsePathAhead" ? { ...statement, elseBody: statements } : statement) };
-  return { statements: mapTree(editor.statements, containerId, (statement) => statement.type === "repeat" || statement.type === "ifPathAhead" ? { ...statement, body: statements } : statement) };
+  if (containerId.startsWith("then:")) return { statements: mapTree(editor.statements, containerId.slice(5), (statement) => statement.type === "ifElse" ? { ...statement, thenBody: statements } : statement) };
+  if (containerId.startsWith("else:")) return { statements: mapTree(editor.statements, containerId.slice(5), (statement) => statement.type === "ifElse" ? { ...statement, elseBody: statements } : statement) };
+  return { statements: mapTree(editor.statements, containerId, (statement) => statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal" ? { ...statement, body: statements } : statement) };
 };
 
 export function insertStatement(editor: EditorProgram, location: EditorLocation, statement: EditorStatement): EditorProgram {
@@ -73,8 +75,8 @@ export function removeStatement(editor: EditorProgram, location: EditorLocation)
 }
 
 const containsId = (statement: EditorStatement, id: string): boolean => statement.id === id
-  || ((statement.type === "repeat" || statement.type === "ifPathAhead") && statement.body.some((child) => containsId(child, id)))
-  || (statement.type === "ifElsePathAhead" && [...statement.thenBody, ...statement.elseBody].some((child) => containsId(child, id)));
+  || ((statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") && statement.body.some((child) => containsId(child, id)))
+  || (statement.type === "ifElse" && [...statement.thenBody, ...statement.elseBody].some((child) => containsId(child, id)));
 
 export function moveStatement(editor: EditorProgram, from: EditorLocation, to: EditorLocation): EditorProgram {
   const source = getContainer(editor, from.containerId)?.[from.index];
@@ -86,22 +88,27 @@ export function moveStatement(editor: EditorProgram, from: EditorLocation, to: E
 }
 
 export const deleteStatement = (editor: EditorProgram, id: string): EditorProgram => {
-  const remove = (statements: readonly EditorStatement[]): readonly EditorStatement[] => statements.filter((statement) => statement.id !== id).map((statement) => statement.type === "repeat" || statement.type === "ifPathAhead" ? { ...statement, body: remove(statement.body) } : statement.type === "ifElsePathAhead" ? { ...statement, thenBody: remove(statement.thenBody), elseBody: remove(statement.elseBody) } : statement);
+  const remove = (statements: readonly EditorStatement[]): readonly EditorStatement[] => statements.filter((statement) => statement.id !== id).map((statement) => statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal" ? { ...statement, body: remove(statement.body) } : statement.type === "ifElse" ? { ...statement, thenBody: remove(statement.thenBody), elseBody: remove(statement.elseBody) } : statement);
   return { statements: remove(editor.statements) };
 };
 export const updateTurn = (editor: EditorProgram, id: string, direction: "left" | "right"): EditorProgram => ({ statements: mapTree(editor.statements, id, (statement) => statement.type === "turn" ? { ...statement, direction } : statement) });
 export const updateRepeatCount = (editor: EditorProgram, id: string, count: number, max = 100): EditorProgram => ({ statements: mapTree(editor.statements, id, (statement) => statement.type === "repeat" ? { ...statement, count: Math.max(1, Math.min(max, Math.round(count))) } : statement) });
+export const updateCondition = (editor: EditorProgram, id: string, condition: PathDirection): EditorProgram => ({ statements: mapTree(editor.statements, id, (statement) => statement.type === "if" || statement.type === "ifElse" || statement.type === "while" ? { ...statement, condition } : statement) });
 
-const toStatement = (statement: EditorStatement): Statement => statement.type === "moveForward" ? { type: "moveForward" } : statement.type === "turn" ? { type: statement.direction === "left" ? "turnLeft" : "turnRight" } : statement.type === "repeat" ? { type: "repeat", count: statement.count, body: statement.body.map(toStatement) } : statement.type === "ifPathAhead" ? { type: "if", condition: { type: "pathAhead" }, body: statement.body.map(toStatement) } : { type: "ifElse", condition: { type: "pathAhead" }, thenBody: statement.thenBody.map(toStatement), elseBody: statement.elseBody.map(toStatement) };
-const containsIfElse = (statements: readonly EditorStatement[]): boolean => statements.some((statement) => statement.type === "ifElsePathAhead" || (statement.type === "repeat" || statement.type === "ifPathAhead") && containsIfElse(statement.body));
-export const toExecutableProgram = (editor: EditorProgram): Program => (containsIfElse(editor.statements) ? programV2 : program)(editor.statements.map(toStatement));
+const path = (direction: PathDirection) => ({ type: "path", direction } as const);
+const toStatement = (statement: EditorStatement): Statement => statement.type === "moveForward" ? { type: "moveForward" } : statement.type === "turn" ? { type: statement.direction === "left" ? "turnLeft" : "turnRight" } : statement.type === "repeat" ? { type: "repeat", count: statement.count, body: statement.body.map(toStatement) } : statement.type === "if" ? { type: "if", condition: path(statement.condition), body: statement.body.map(toStatement) } : statement.type === "ifElse" ? { type: "ifElse", condition: path(statement.condition), thenBody: statement.thenBody.map(toStatement), elseBody: statement.elseBody.map(toStatement) } : statement.type === "while" ? { type: "while", condition: path(statement.condition), body: statement.body.map(toStatement) } : { type: "repeatUntilGoal", body: statement.body.map(toStatement) };
+const containsV3 = (statements: readonly EditorStatement[]): boolean => statements.some((statement) => statement.type === "if" || statement.type === "ifElse" || statement.type === "while" || statement.type === "repeatUntilGoal" || statement.type === "repeat" && containsV3(statement.body));
+export const toExecutableProgram = (editor: EditorProgram): Program => (containsV3(editor.statements) ? programV3 : program)(editor.statements.map(toStatement));
 export const fromExecutableProgram = (source: Program, makeId: () => string): EditorProgram => {
   const convert = (statement: Statement): EditorStatement => {
     if (statement.type === "moveForward") return { id: makeId(), type: "moveForward" };
     if (statement.type === "turnLeft" || statement.type === "turnRight") return { id: makeId(), type: "turn", direction: statement.type === "turnLeft" ? "left" : "right" };
     if (statement.type === "repeat") return { id: makeId(), type: "repeat", count: statement.count, body: statement.body.map(convert) };
-    if (statement.type === "if") return { id: makeId(), type: "ifPathAhead", body: statement.body.map(convert) };
-    return { id: makeId(), type: "ifElsePathAhead", thenBody: statement.thenBody.map(convert), elseBody: statement.elseBody.map(convert) };
+    const condition = "condition" in statement && statement.condition.type === "path" ? statement.condition.direction : "ahead";
+    if (statement.type === "if") return { id: makeId(), type: "if", condition, body: statement.body.map(convert) };
+    if (statement.type === "ifElse") return { id: makeId(), type: "ifElse", condition, thenBody: statement.thenBody.map(convert), elseBody: statement.elseBody.map(convert) };
+    if (statement.type === "while") return { id: makeId(), type: "while", condition, body: statement.body.map(convert) };
+    return { id: makeId(), type: "repeatUntilGoal", body: statement.body.map(convert) };
   };
   return { statements: source.statements.map(convert) };
 };
@@ -110,8 +117,8 @@ export const findLocation = (editor: EditorProgram, id: string): EditorLocation 
     for (let index = 0; index < statements.length; index += 1) {
       const statement = statements[index]!;
       if (statement.id === id) return { containerId, index };
-      if (statement.type === "repeat" || statement.type === "ifPathAhead") { const nested = visit(statement.body, statement.id); if (nested) return nested; }
-      if (statement.type === "ifElsePathAhead") {
+      if (statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") { const nested = visit(statement.body, statement.id); if (nested) return nested; }
+      if (statement.type === "ifElse") {
         const nested = visit(statement.thenBody, thenContainerId(statement.id)) ?? visit(statement.elseBody, elseContainerId(statement.id));
         if (nested) return nested;
       }
