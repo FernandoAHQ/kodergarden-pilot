@@ -30,6 +30,7 @@ export interface AdminIdentity {
   readonly id: string;
   readonly email: string;
   readonly displayName: string;
+  readonly role: "admin" | "viewer";
 }
 
 export interface AdminSessionResponseV1 {
@@ -70,3 +71,5 @@ export interface AdminDraftResponseV1 { readonly version: 1; readonly draft: Adm
 export interface AdminDraftUpdateV1 { readonly order: number; readonly translations: AdminDraft["translations"]; readonly challenges: readonly AdminDraftChallenge[] }
 export interface AdminValidationIssue { readonly challengeSlug: string | null; readonly code: string; readonly message: string }
 export interface AdminValidationResponseV1 { readonly version: 1; readonly valid: boolean; readonly issues: readonly AdminValidationIssue[] }
+export interface AdminTeamMember extends AdminIdentity { readonly disabled: boolean; readonly createdAt: string }
+export interface AdminTeamResponseV1 { readonly version: 1; readonly members: readonly AdminTeamMember[] }

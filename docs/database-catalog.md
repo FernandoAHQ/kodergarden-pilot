@@ -43,6 +43,8 @@ After running `admin:seed`, open `/admin`. The command creates the user only whe
 
 An administrator can clone the current published campaign into one isolated draft, edit English and Spanish campaign/challenge copy, duplicate, remove, and reorder challenges, configure allowed tools and block/step limits, paint default and dynamic grid layouts, and build starter and reference programs. A readiness check runs reference programs against every layout and publishing rejects failing solutions. Legacy challenges without a reference program remain publishable while they are migrated. Learner APIs never return drafts. Publication atomically advances the campaign's published revision pointer, and draft creation, updates, and publication are recorded in `curriculum_audit_events`.
 
+Team access uses two roles. Admins can manage team members and mutate or publish curriculum; viewers can inspect the catalog, drafts, previews, validation results, and history. At least one active admin is always required.
+
 ## Verification
 
 The database test refuses to run unless the database name is exactly `kodergarden_test`:

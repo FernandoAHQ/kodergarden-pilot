@@ -4,6 +4,8 @@ import type {
   AdminDraft,
   AdminDraftResponseV1,
   AdminSessionResponseV1,
+  AdminTeamMember,
+  AdminTeamResponseV1,
   AdminValidationResponseV1,
   CampaignResponseV1,
   CatalogCampaignDefinition,
@@ -29,6 +31,7 @@ export function AdminApp() {
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
     [draft, setDraft] = useState<AdminDraft | null>(null),
+    [team, setTeam] = useState<readonly AdminTeamMember[] | null>(null),
     [validation, setValidation] = useState<AdminValidationResponseV1 | null>(null),
     [preview, setPreview] = useState<CatalogCampaignDefinition | null>(null),
     [previewLocale, setPreviewLocale] = useState<"en" | "es">("en");
@@ -274,6 +277,9 @@ export function AdminApp() {
   });
   const duplicateChallenge=async(sourceSlug:string)=>{if(!draft)return;const slug=window.prompt("New challenge slug (lowercase letters, numbers, and hyphens):",`${sourceSlug}-copy`);if(!slug)return;setBusy(true);setMessage("");try{await mutate(`/api/admin/drafts/${draft.id}`,"PATCH",{order:draft.order,translations:draft.translations,challenges:draft.challenges});const result=await mutate<AdminDraftResponseV1>(`/api/admin/drafts/${draft.id}/challenges`,"POST",{sourceSlug,slug});setDraft(result.draft);setMessage("Challenge duplicated and draft saved.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to duplicate challenge");}finally{setBusy(false);}};
   const removeChallenge=async(slug:string)=>{if(!draft||!window.confirm(`Remove ${slug} from this draft?`))return;setBusy(true);setMessage("");try{const result=await mutate<AdminDraftResponseV1>(`/api/admin/drafts/${draft.id}/challenges/${encodeURIComponent(slug)}`,"DELETE");setDraft(result.draft);setMessage("Challenge removed from draft.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to remove challenge");}finally{setBusy(false);}};
+  const openTeam=async()=>{setBusy(true);setMessage("");try{const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setDraft(null);}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to load team");}finally{setBusy(false);}};
+  const createMember=async(input:{email:string;displayName:string;password:string;role:"admin"|"viewer"})=>{setBusy(true);setMessage("");try{await mutate<AdminTeamMember>("/api/admin/team","POST",input);const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setMessage("Team member created.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to create team member");}finally{setBusy(false);}};
+  const updateMember=async(id:string,input:{role?:"admin"|"viewer";disabled?:boolean;password?:string})=>{setBusy(true);setMessage("");try{await mutate<AdminTeamMember>(`/api/admin/team/${id}`,"PATCH",input);const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setMessage("Team member updated.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to update team member");}finally{setBusy(false);}};
   if (loading)
     return (
       <main className="admin-state">
@@ -328,6 +334,7 @@ export function AdminApp() {
           <span>{session.user.displayName}</span>
           <small>{session.user.email}</small>
         </div>
+        <button onClick={() => team ? setTeam(null) : void openTeam()}>{team ? "Campaigns" : "Team"}</button>
         <button onClick={() => void logout()}>Sign out</button>
       </header>
       <section className="admin-content">
@@ -342,7 +349,7 @@ export function AdminApp() {
             {message}
           </div>
         )}
-        {draft ? (
+        {team ? <TeamPanel members={team} canEdit={session.user.role === "admin"} busy={busy} onCreate={(input)=>void createMember(input)} onUpdate={(id,input)=>void updateMember(id,input)}/> : draft ? (
           <DraftEditor
             draft={draft}
             busy={busy}
@@ -406,12 +413,12 @@ export function AdminApp() {
                   </dl>
                   <button
                     className="admin-primary"
-                    disabled={busy}
+                    disabled={busy || (session.user.role === "viewer" && !campaign.draftRevisionId)}
                     onClick={() =>
                       void openDraft(campaign.id, campaign.draftRevisionId)
                     }
                   >
-                    {campaign.draftRevisionId ? "Edit draft" : "Create draft"}
+                    {campaign.draftRevisionId ? (session.user.role === "viewer" ? "View draft" : "Edit draft") : (session.user.role === "viewer" ? "No draft" : "Create draft")}
                   </button>
                 </article>
               ))}
@@ -421,6 +428,12 @@ export function AdminApp() {
       </section>
     </main>
   );
+}
+
+function TeamPanel({members,canEdit,busy,onCreate,onUpdate}:{members:readonly AdminTeamMember[];canEdit:boolean;busy:boolean;onCreate:(input:{email:string;displayName:string;password:string;role:"admin"|"viewer"})=>void;onUpdate:(id:string,input:{role?:"admin"|"viewer";disabled?:boolean;password?:string})=>void}) {
+  const [email,setEmail]=useState(""),[displayName,setDisplayName]=useState(""),[password,setPassword]=useState(""),[role,setRole]=useState<"admin"|"viewer">("viewer");
+  const submit=(event:FormEvent)=>{event.preventDefault();onCreate({email,displayName,password,role});setEmail("");setDisplayName("");setPassword("");};
+  return <section className="team-panel"><div className="admin-title"><div><small>ACCESS</small><h1>Team</h1><p>Admins can edit and publish. Viewers can inspect drafts and previews.</p></div><span>{members.length} members</span></div>{canEdit&&<form className="team-create" onSubmit={submit}><label>Name<input required value={displayName} onChange={(event)=>setDisplayName(event.target.value)}/></label><label>Email<input required type="email" value={email} onChange={(event)=>setEmail(event.target.value)}/></label><label>Temporary password<input required type="password" minLength={12} value={password} onChange={(event)=>setPassword(event.target.value)}/></label><label>Role<select value={role} onChange={(event)=>setRole(event.target.value as "admin"|"viewer")}><option value="viewer">Viewer</option><option value="admin">Admin</option></select></label><button className="admin-primary" disabled={busy}>Add member</button></form>}<div className="team-list">{members.map((member)=><article key={member.id} className={member.disabled?"is-disabled":""}><div><strong>{member.displayName}</strong><span>{member.email}</span><small>{member.disabled?"Disabled":member.role}</small></div>{canEdit&&<div className="team-actions"><select aria-label={`Role for ${member.displayName}`} value={member.role} disabled={busy||member.disabled} onChange={(event)=>onUpdate(member.id,{role:event.target.value as "admin"|"viewer"})}><option value="admin">Admin</option><option value="viewer">Viewer</option></select><button disabled={busy} onClick={()=>{const next=window.prompt(`New password for ${member.email} (12+ characters):`);if(next)onUpdate(member.id,{password:next});}}>Reset password</button><button className="danger-button" disabled={busy} onClick={()=>onUpdate(member.id,{disabled:!member.disabled})}>{member.disabled?"Reactivate":"Disable"}</button></div>}</article>)}</div></section>;
 }
 
 function Brand() {

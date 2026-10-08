@@ -6,6 +6,7 @@ export class AdminUserEntity {
   @Index({ unique: true }) @Column({ type: "varchar", length: 320 }) email!: string;
   @Column({ name: "display_name", type: "varchar", length: 120 }) displayName!: string;
   @Column({ name: "password_hash", type: "text" }) passwordHash!: string;
+  @Column({ type: "varchar", length: 20, default: "admin" }) role!: "admin" | "viewer";
   @Column({ name: "created_at", type: "timestamptz", default: () => "CURRENT_TIMESTAMP" }) createdAt!: Date;
   @Column({ name: "disabled_at", type: "timestamptz", nullable: true }) disabledAt!: Date | null;
 }

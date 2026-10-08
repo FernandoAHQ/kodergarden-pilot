@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { AdminSessionResponseV1 } from "@kodergarden/shared";
-import { LessThan, Repository } from "typeorm";
+import type { AdminSessionResponseV1, AdminTeamMember, AdminTeamResponseV1 } from "@kodergarden/shared";
+import { IsNull, LessThan, Repository } from "typeorm";
 import { AdminSessionEntity, AdminUserEntity } from "./auth.entities.js";
 import { hashPassword, verifyPassword } from "./password.js";
 
@@ -66,10 +66,25 @@ export class AuthService {
   }
 
   async requireCsrf(request: RequestLike): Promise<{ session: AdminSessionEntity; user: AdminUserEntity }> { const current=await this.current(request);const csrf=request.headers["x-kodergarden-csrf"];if(typeof csrf!=="string"||csrf!==current.session.csrfToken)throw new ForbiddenException("Invalid CSRF token");return current; }
+  async requireAdminCsrf(request: RequestLike) { const current=await this.requireCsrf(request);if(current.user.role!=="admin")throw new ForbiddenException("Admin role required");return current; }
+
+  async team(): Promise<AdminTeamResponseV1> {
+    const members=await this.users.find({order:{createdAt:"ASC"}});
+    return {version:1,members:members.map((user)=>this.member(user))};
+  }
+  async createMember(input:{email?:unknown;displayName?:unknown;password?:unknown;role?:unknown}):Promise<AdminTeamMember>{
+    const email=typeof input.email==="string"?input.email.trim().toLowerCase():"";const displayName=typeof input.displayName==="string"?input.displayName.trim():"";const password=typeof input.password==="string"?input.password:"";const role=input.role;
+    if(!/^\S+@\S+\.\S+$/.test(email)||email.length>320)throw new BadRequestException("Valid email is required");if(!displayName||displayName.length>120)throw new BadRequestException("Display name is required");if(password.length<12||password.length>200)throw new BadRequestException("Password must contain 12 to 200 characters");if(role!=="admin"&&role!=="viewer")throw new BadRequestException("Role must be admin or viewer");if(await this.users.existsBy({email}))throw new ConflictException("Email already exists");
+    const user=await this.users.save(this.users.create({email,displayName,passwordHash:await hashPassword(password),role,disabledAt:null}));return this.member(user);
+  }
+  async updateMember(id:string,input:{role?:unknown;disabled?:unknown;password?:unknown}):Promise<AdminTeamMember>{
+    const user=await this.users.findOneBy({id});if(!user)throw new NotFoundException("Team member not found");const role=input.role===undefined?user.role:input.role;if(role!=="admin"&&role!=="viewer")throw new BadRequestException("Role must be admin or viewer");const disabled=input.disabled===undefined?user.disabledAt!==null:input.disabled;if(typeof disabled!=="boolean")throw new BadRequestException("Disabled must be true or false");if(user.role==="admin"&&(role!=="admin"||disabled)&&await this.users.countBy({role:"admin",disabledAt:IsNull()})<=1)throw new ConflictException("At least one active admin is required");const password=input.password;if(password!==undefined&&(typeof password!=="string"||password.length<12||password.length>200))throw new BadRequestException("Password must contain 12 to 200 characters");user.role=role;user.disabledAt=disabled?user.disabledAt??new Date():null;if(typeof password==="string")user.passwordHash=await hashPassword(password);await this.users.save(user);if(disabled)await this.sessions.delete({userId:user.id});return this.member(user);
+  }
 
   private response(user: AdminUserEntity, csrfToken: string, expiresAt: Date): AdminSessionResponseV1 {
-    return { version: 1, user: { id: user.id, email: user.email, displayName: user.displayName }, csrfToken, expiresAt: expiresAt.toISOString() };
+    return { version: 1, user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role }, csrfToken, expiresAt: expiresAt.toISOString() };
   }
+  private member(user:AdminUserEntity):AdminTeamMember{return{id:user.id,email:user.email,displayName:user.displayName,role:user.role,disabled:user.disabledAt!==null,createdAt:user.createdAt.toISOString()};}
   private tokenHash(token: string) { return createHash("sha256").update(token).digest("hex"); }
   private setCookie(response: ResponseLike, token: string, expiresAt: Date) { response.cookie(ADMIN_COOKIE, token, { ...this.cookieOptions(), expires: expiresAt }); }
   private cookieOptions() { return { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", path: "/" }; }
