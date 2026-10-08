@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type {
   AdminCatalogResponseV1,
+  AdminCampaignHistoryResponseV1,
   AdminDraft,
   AdminDraftResponseV1,
   AdminSessionResponseV1,
@@ -32,6 +33,7 @@ export function AdminApp() {
     [busy, setBusy] = useState(false),
     [draft, setDraft] = useState<AdminDraft | null>(null),
     [team, setTeam] = useState<readonly AdminTeamMember[] | null>(null),
+    [history, setHistory] = useState<AdminCampaignHistoryResponseV1 | null>(null),
     [validation, setValidation] = useState<AdminValidationResponseV1 | null>(null),
     [preview, setPreview] = useState<CatalogCampaignDefinition | null>(null),
     [previewLocale, setPreviewLocale] = useState<"en" | "es">("en");
@@ -280,6 +282,8 @@ export function AdminApp() {
   const openTeam=async()=>{setBusy(true);setMessage("");try{const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setDraft(null);}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to load team");}finally{setBusy(false);}};
   const createMember=async(input:{email:string;displayName:string;password:string;role:"admin"|"viewer"})=>{setBusy(true);setMessage("");try{await mutate<AdminTeamMember>("/api/admin/team","POST",input);const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setMessage("Team member created.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to create team member");}finally{setBusy(false);}};
   const updateMember=async(id:string,input:{role?:"admin"|"viewer";disabled?:boolean;password?:string})=>{setBusy(true);setMessage("");try{await mutate<AdminTeamMember>(`/api/admin/team/${id}`,"PATCH",input);const result=await json<AdminTeamResponseV1>(await fetch("/api/admin/team"));setTeam(result.members);setMessage("Team member updated.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to update team member");}finally{setBusy(false);}};
+  const openHistory=async(campaignId:string)=>{setBusy(true);setMessage("");try{setHistory(await json<AdminCampaignHistoryResponseV1>(await fetch(`/api/admin/campaigns/${campaignId}/history`)));}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to load history");}finally{setBusy(false);}};
+  const restoreRevision=async(revisionId:string)=>{if(!history)return;setBusy(true);setMessage("");try{const result=await mutate<AdminDraftResponseV1>(`/api/admin/campaigns/${history.campaignId}/restore/${revisionId}`,"POST");setHistory(null);setDraft(result.draft);await loadCatalog();setMessage("Historical revision restored as a new draft.");}catch(reason){setMessage(reason instanceof Error?reason.message:"Unable to restore revision");}finally{setBusy(false);}};
   if (loading)
     return (
       <main className="admin-state">
@@ -341,7 +345,7 @@ export function AdminApp() {
         {message && (
           <div
             className={
-              message.includes("success") || message.includes("saved")
+              message.includes("success") || message.includes("saved") || message.includes("ready") || message.includes("created") || message.includes("updated") || message.includes("restored")
                 ? "admin-notice"
                 : "admin-error"
             }
@@ -349,7 +353,7 @@ export function AdminApp() {
             {message}
           </div>
         )}
-        {team ? <TeamPanel members={team} canEdit={session.user.role === "admin"} busy={busy} onCreate={(input)=>void createMember(input)} onUpdate={(id,input)=>void updateMember(id,input)}/> : draft ? (
+        {team ? <TeamPanel members={team} canEdit={session.user.role === "admin"} busy={busy} onCreate={(input)=>void createMember(input)} onUpdate={(id,input)=>void updateMember(id,input)}/> : history ? <HistoryPanel history={history} canRestore={session.user.role === "admin"} busy={busy} onBack={()=>setHistory(null)} onRestore={(id)=>void restoreRevision(id)}/> : draft ? (
           <DraftEditor
             draft={draft}
             busy={busy}
@@ -411,7 +415,7 @@ export function AdminApp() {
                       </dd>
                     </div>
                   </dl>
-                  <button
+                  <div className="campaign-admin-actions"><button
                     className="admin-primary"
                     disabled={busy || (session.user.role === "viewer" && !campaign.draftRevisionId)}
                     onClick={() =>
@@ -419,7 +423,7 @@ export function AdminApp() {
                     }
                   >
                     {campaign.draftRevisionId ? (session.user.role === "viewer" ? "View draft" : "Edit draft") : (session.user.role === "viewer" ? "No draft" : "Create draft")}
-                  </button>
+                  </button><button disabled={busy} onClick={()=>void openHistory(campaign.id)}>History</button></div>
                 </article>
               ))}
             </div>
@@ -428,6 +432,11 @@ export function AdminApp() {
       </section>
     </main>
   );
+}
+
+function HistoryPanel({history,canRestore,busy,onBack,onRestore}:{history:AdminCampaignHistoryResponseV1;canRestore:boolean;busy:boolean;onBack:()=>void;onRestore:(id:string)=>void}) {
+  const hasDraft=history.revisions.some((revision)=>revision.status==="draft");
+  return <section className="history-panel"><button onClick={onBack}>← Campaigns</button><div className="admin-title"><div><small>REVISION HISTORY</small><h1>{history.campaignId}</h1><p>Published revisions are immutable. Restore copies one into a new editable draft.</p></div></div><div className="history-grid"><section><h2>Versions</h2>{history.revisions.map((revision)=><article key={revision.id}><div><strong>Version {revision.version}</strong><span>{revision.current?"Current published":revision.status}</span>{revision.publishedAt&&<small>{new Date(revision.publishedAt).toLocaleString()}</small>}</div>{canRestore&&revision.status==="published"&&!revision.current&&<button disabled={busy||hasDraft} onClick={()=>onRestore(revision.id)}>Restore as draft</button>}</article>)}</section><section><h2>Activity</h2>{history.events.map((event)=><article key={event.id}><div><strong>{event.action.replaceAll("."," ")}</strong><span>{event.displayName}</span><small>{new Date(event.createdAt).toLocaleString()}</small></div></article>)}</section></div>{hasDraft&&<p className="history-note">Finish or publish the current draft before restoring an older revision.</p>}</section>;
 }
 
 function TeamPanel({members,canEdit,busy,onCreate,onUpdate}:{members:readonly AdminTeamMember[];canEdit:boolean;busy:boolean;onCreate:(input:{email:string;displayName:string;password:string;role:"admin"|"viewer"})=>void;onUpdate:(id:string,input:{role?:"admin"|"viewer";disabled?:boolean;password?:string})=>void}) {

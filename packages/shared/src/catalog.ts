@@ -73,3 +73,6 @@ export interface AdminValidationIssue { readonly challengeSlug: string | null; r
 export interface AdminValidationResponseV1 { readonly version: 1; readonly valid: boolean; readonly issues: readonly AdminValidationIssue[] }
 export interface AdminTeamMember extends AdminIdentity { readonly disabled: boolean; readonly createdAt: string }
 export interface AdminTeamResponseV1 { readonly version: 1; readonly members: readonly AdminTeamMember[] }
+export interface AdminRevisionHistoryItem { readonly id: string; readonly version: number; readonly status: "draft" | "published"; readonly publishedAt: string | null; readonly current: boolean }
+export interface AdminAuditHistoryItem { readonly id: string; readonly action: string; readonly createdAt: string; readonly displayName: string; readonly metadata: Readonly<Record<string, unknown>> }
+export interface AdminCampaignHistoryResponseV1 { readonly version: 1; readonly campaignId: string; readonly revisions: readonly AdminRevisionHistoryItem[]; readonly events: readonly AdminAuditHistoryItem[] }

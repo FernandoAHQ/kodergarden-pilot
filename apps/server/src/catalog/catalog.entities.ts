@@ -88,7 +88,7 @@ export class CurriculumAuditEventEntity {
   @Column({ name: "admin_user_id", type: "uuid" }) adminUserId!: string;
   @Column({ name: "campaign_id", type: "uuid" }) campaignId!: string;
   @Column({ name: "revision_id", type: "uuid" }) revisionId!: string;
-  @Column({ type: "varchar", length: 40 }) action!: "draft.created" | "draft.updated" | "revision.published";
+  @Column({ type: "varchar", length: 40 }) action!: "draft.created" | "draft.updated" | "draft.restored" | "revision.published";
   @Column({ type: "jsonb", default: () => "'{}'::jsonb" }) metadata!: Record<string, unknown>;
   @Column({ name: "created_at", type: "timestamptz", default: () => "CURRENT_TIMESTAMP" }) createdAt!: Date;
 }

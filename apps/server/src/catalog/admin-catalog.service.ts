@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type {
   AdminCatalogResponseV1,
+  AdminCampaignHistoryResponseV1,
   AdminDraft,
   AdminDraftResponseV1,
   AdminDraftUpdateV1,
@@ -25,6 +26,7 @@ import {
 } from "./catalog.entities.js";
 import { CatalogService } from "./catalog.service.js";
 import type { EditorTool } from "@kodergarden/shared";
+import { AdminUserEntity } from "../auth/auth.entities.js";
 import { executeProgram, GridRuntime, type GridWorldDefinition } from "@kodergarden/engine";
 import { countBlocks, validateProgram, type Statement } from "@kodergarden/language";
 
@@ -454,6 +456,36 @@ export class AdminCatalogService {
         campaign: this.catalog.mapRevision(campaign, revision, "en"),
       };
     });
+  }
+
+  async history(slug: string): Promise<AdminCampaignHistoryResponseV1> {
+    const campaign = await this.dataSource.getRepository(CampaignEntity).findOneBy({ slug });
+    if (!campaign) throw new NotFoundException("Campaign not found");
+    const revisions = await this.dataSource.getRepository(CampaignRevisionEntity).find({ where: { campaignId: campaign.id }, order: { version: "DESC" } });
+    const events = await this.dataSource.getRepository(CurriculumAuditEventEntity).find({ where: { campaignId: campaign.id }, order: { createdAt: "DESC" }, take: 100 });
+    const users = await this.dataSource.getRepository(AdminUserEntity).find();
+    return { version: 1, campaignId: slug, revisions: revisions.map((revision) => ({ id: revision.id, version: revision.version, status: revision.status, publishedAt: revision.publishedAt?.toISOString() ?? null, current: revision.id === campaign.publishedRevisionId })), events: events.map((event) => ({ id: event.id, action: event.action, createdAt: event.createdAt.toISOString(), displayName: users.find((user) => user.id === event.adminUserId)?.displayName ?? "Former team member", metadata: event.metadata })) };
+  }
+
+  async restoreRevision(slug: string, sourceRevisionId: string, adminUserId: string): Promise<AdminDraftResponseV1> {
+    const draftId = await this.dataSource.transaction(async (manager) => {
+      const campaign = await manager.getRepository(CampaignEntity).findOneBy({ slug });
+      if (!campaign) throw new NotFoundException("Campaign not found");
+      if (await manager.getRepository(CampaignRevisionEntity).existsBy({ campaignId: campaign.id, status: "draft" })) throw new ConflictException("Campaign already has a draft");
+      const source = await this.loadedRevision(manager, sourceRevisionId);
+      if (source.campaignId !== campaign.id || source.status !== "published") throw new BadRequestException("Only a published revision from this campaign can be restored");
+      const versionRow = await manager.getRepository(CampaignRevisionEntity).createQueryBuilder("revision").select("MAX(revision.version)", "max").where("revision.campaignId = :campaignId", { campaignId: campaign.id }).getRawOne<{ max: string | null }>();
+      const draft = await manager.getRepository(CampaignRevisionEntity).save(manager.getRepository(CampaignRevisionEntity).create({ campaignId: campaign.id, version: Number(versionRow?.max ?? 0) + 1, status: "draft", kind: source.kind, order: source.order, publishedAt: null }));
+      for (const copy of source.translations) await manager.getRepository(CampaignTranslationEntity).save(manager.getRepository(CampaignTranslationEntity).create({ revisionId: draft.id, locale: copy.locale, title: copy.title, description: copy.description }));
+      for (const sourceChallenge of [...source.challenges].sort((a, b) => a.order - b.order)) {
+        const challenge = await manager.getRepository(ChallengeEntity).save(manager.getRepository(ChallengeEntity).create({ revisionId: draft.id, slug: sourceChallenge.slug, order: sourceChallenge.order, type: "build", world: sourceChallenge.world, allowed: sourceChallenge.allowed, starter: sourceChallenge.starter, maxBlocks: sourceChallenge.maxBlocks, parBlocks: sourceChallenge.parBlocks, parSteps: sourceChallenge.parSteps, unlockKey: sourceChallenge.unlockKey, referenceSolution: sourceChallenge.referenceSolution }));
+        for (const copy of sourceChallenge.translations) await manager.getRepository(ChallengeTranslationEntity).save(manager.getRepository(ChallengeTranslationEntity).create({ challengeId: challenge.id, locale: copy.locale, title: copy.title, instruction: copy.instruction, concept: copy.concept }));
+        for (const layout of sourceChallenge.layouts) await manager.getRepository(ChallengeLayoutEntity).save(manager.getRepository(ChallengeLayoutEntity).create({ challengeId: challenge.id, slug: layout.slug, order: layout.order, world: layout.world }));
+      }
+      await this.audit(manager, adminUserId, campaign.id, draft.id, "draft.restored", { sourceRevisionId });
+      return draft.id;
+    });
+    return this.draft(draftId);
   }
 
   async validateDraft(id: string): Promise<AdminValidationResponseV1> {

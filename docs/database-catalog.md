@@ -45,6 +45,8 @@ An administrator can clone the current published campaign into one isolated draf
 
 Team access uses two roles. Admins can manage team members and mutate or publish curriculum; viewers can inspect the catalog, drafts, previews, validation results, and history. At least one active admin is always required.
 
+Each campaign exposes its immutable revision history and recent audit activity. An admin can copy an older published revision into a new draft when no draft is already open; recovery never rewrites or deletes the historical revision.
+
 ## Verification
 
 The database test refuses to run unless the database name is exactly `kodergarden_test`:

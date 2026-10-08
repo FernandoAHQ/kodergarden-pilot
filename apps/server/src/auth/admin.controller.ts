@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
-import type { AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, AdminTeamMember, AdminTeamResponseV1, AdminValidationResponseV1, CampaignResponseV1 } from "@kodergarden/shared";
+import type { AdminCampaignHistoryResponseV1, AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, AdminTeamMember, AdminTeamResponseV1, AdminValidationResponseV1, CampaignResponseV1 } from "@kodergarden/shared";
 import { AdminCatalogService } from "../catalog/admin-catalog.service.js";
 import { AuthService, type RequestLike } from "./auth.service.js";
 
@@ -33,4 +33,8 @@ export class AdminController {
   async createMember(@Body() body:{email?:unknown;displayName?:unknown;password?:unknown;role?:unknown},@Req() request:RequestLike):Promise<AdminTeamMember>{await this.auth.requireAdminCsrf(request);return this.auth.createMember(body);}
   @Patch("team/:id") @Header("Cache-Control", "no-store")
   async updateMember(@Param("id") id:string,@Body() body:{role?:unknown;disabled?:unknown;password?:unknown},@Req() request:RequestLike):Promise<AdminTeamMember>{await this.auth.requireAdminCsrf(request);return this.auth.updateMember(id,body);}
+  @Get("campaigns/:slug/history") @Header("Cache-Control", "no-store")
+  async history(@Param("slug") slug:string,@Req() request:RequestLike):Promise<AdminCampaignHistoryResponseV1>{await this.auth.current(request);return this.catalog.history(slug);}
+  @Post("campaigns/:slug/restore/:revisionId") @Header("Cache-Control", "no-store")
+  async restore(@Param("slug") slug:string,@Param("revisionId") revisionId:string,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireAdminCsrf(request);return this.catalog.restoreRevision(slug,revisionId,user.id);}
 }
