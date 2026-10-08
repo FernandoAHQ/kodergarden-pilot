@@ -1,4 +1,6 @@
 import type { CampaignDefinition } from "./practice.js";
+import type { GridWorldDefinition } from "@kodergarden/engine";
+import type { Program } from "@kodergarden/language";
 
 export interface CatalogCampaignDefinition extends CampaignDefinition {
   readonly revisionId: string;
@@ -53,6 +55,9 @@ export interface AdminDraftChallenge {
   readonly slug: string; readonly order: number;
   readonly allowed: readonly import("./practice.js").EditorTool[];
   readonly maxBlocks: number | null; readonly parBlocks: number | null; readonly parSteps: number | null;
+  readonly world: GridWorldDefinition;
+  readonly layouts: readonly { readonly slug: string; readonly order: number; readonly world: GridWorldDefinition }[];
+  readonly starter: Program;
   readonly translations: { readonly en: LocalizedChallengeCopy; readonly es: LocalizedChallengeCopy };
 }
 export interface AdminDraft {

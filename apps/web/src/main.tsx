@@ -10,7 +10,7 @@ import { AdminApp } from "./admin/AdminApp.js";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppErrorBoundary>
-      {window.location.pathname.startsWith("/admin") ? <AdminApp /> : <I18nProvider><CatalogProvider><RootApp /></CatalogProvider></I18nProvider>}
+      <I18nProvider>{window.location.pathname.startsWith("/admin") ? <AdminApp /> : <CatalogProvider><RootApp /></CatalogProvider>}</I18nProvider>
     </AppErrorBoundary>
   </StrictMode>,
 );

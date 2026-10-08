@@ -41,7 +41,7 @@ Supported seed locales are `en` and `es`; unsupported locale values fall back to
 
 After running `admin:seed`, open `/admin`. The command creates the user only when the normalized email does not already exist; it never resets an existing password. Admin sessions expire after 12 hours and use an opaque, HttpOnly, `SameSite=Strict` cookie. Production cookies require HTTPS.
 
-An administrator can clone the current published campaign into one isolated draft, edit English and Spanish campaign/challenge copy, duplicate, remove, and reorder challenges, configure each challenge's allowed tools and block/step limits, privately preview either locale, and publish the revision. Learner APIs never return drafts. Publication validates the complete campaign and atomically advances the campaign's published revision pointer. Draft creation, updates, and publication are recorded in `curriculum_audit_events`. Grid and program editing remain intentionally outside this authoring interface.
+An administrator can clone the current published campaign into one isolated draft, edit English and Spanish campaign/challenge copy, duplicate, remove, and reorder challenges, configure allowed tools and block/step limits, paint default and dynamic grid layouts, build starter programs, privately preview either locale, and publish the revision. Learner APIs never return drafts. Publication validates the complete campaign and atomically advances the campaign's published revision pointer. Draft creation, updates, and publication are recorded in `curriculum_audit_events`. Reference-solution editing remains intentionally outside this authoring interface.
 
 ## Verification
 

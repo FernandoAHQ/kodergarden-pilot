@@ -23,6 +23,8 @@ import {
 } from "./catalog.entities.js";
 import { CatalogService } from "./catalog.service.js";
 import type { EditorTool } from "@kodergarden/shared";
+import { GridRuntime, type GridWorldDefinition } from "@kodergarden/engine";
+import { countBlocks, validateProgram, type Statement } from "@kodergarden/language";
 
 const requiredLocales = ["en", "es"] as const;
 const editorTools: readonly EditorTool[] = [
@@ -243,10 +245,24 @@ export class AdminCatalogService {
           .update(challenge.id, {
             order: item.order,
             allowed: item.allowed,
+            world: item.world,
+            starter: item.starter,
             maxBlocks: item.maxBlocks,
             parBlocks: item.parBlocks,
             parSteps: item.parSteps,
           });
+        await manager
+          .getRepository(ChallengeLayoutEntity)
+          .delete({ challengeId: challenge.id });
+        for (const layout of item.layouts)
+          await manager.getRepository(ChallengeLayoutEntity).save(
+            manager.getRepository(ChallengeLayoutEntity).create({
+              challengeId: challenge.id,
+              slug: layout.slug,
+              order: layout.order,
+              world: layout.world,
+            }),
+          );
         for (const locale of requiredLocales) {
           const copy = item.translations[locale];
           await manager
@@ -487,6 +503,15 @@ export class AdminCatalogService {
             maxBlocks: challenge.maxBlocks,
             parBlocks: challenge.parBlocks,
             parSteps: challenge.parSteps,
+            world: challenge.world,
+            layouts: [...challenge.layouts]
+              .sort((a, b) => a.order - b.order)
+              .map((layout) => ({
+                slug: layout.slug,
+                order: layout.order,
+                world: layout.world,
+              })),
+            starter: challenge.starter,
             translations: { en: challengeCopy("en"), es: challengeCopy("es") },
           };
         }),
@@ -543,6 +568,46 @@ export class AdminCatalogService {
         item.allowed.some((tool: EditorTool) => !editorTools.includes(tool))
       )
         throw new BadRequestException(`${item.slug} needs valid allowed tools`);
+      const world = this.validateWorld(item.world, `${item.slug} base layout`);
+      const starter = validateProgram(item.starter);
+      if (!starter.ok)
+        throw new BadRequestException(
+          `${item.slug} starter program: ${starter.errors.join(", ")}`,
+        );
+      const usedTools = this.programTools(starter.program.statements);
+      if (usedTools.some((tool) => !item.allowed.includes(tool)))
+        throw new BadRequestException(
+          `${item.slug} starter program uses a block that is not allowed`,
+        );
+      if (item.maxBlocks !== null && countBlocks(starter.program) > item.maxBlocks)
+        throw new BadRequestException(
+          `${item.slug} starter program exceeds its maximum block count`,
+        );
+      if (!Array.isArray(item.layouts))
+        throw new BadRequestException(`${item.slug} layouts must be an array`);
+      const layoutSlugs = new Set<string>();
+      const layouts = item.layouts.map((layout: { slug: string; world: GridWorldDefinition }, layoutIndex: number) => {
+        const slug = text(
+          layout?.slug,
+          `${item.slug} layout ${layoutIndex + 1} slug`,
+          100,
+        );
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
+          throw new BadRequestException(
+            `${item.slug} layout slugs must use lowercase letters, numbers, and hyphens`,
+          );
+        if (layoutSlugs.has(slug))
+          throw new BadRequestException(`${item.slug} layout slugs must be unique`);
+        layoutSlugs.add(slug);
+        return {
+          slug,
+          order: layoutIndex + 1,
+          world: this.validateWorld(
+            layout.world,
+            `${item.slug} layout ${slug}`,
+          ),
+        };
+      });
       return {
         slug: item.slug,
         order: orders[index]!,
@@ -550,6 +615,9 @@ export class AdminCatalogService {
         maxBlocks: limit(item.maxBlocks, `${item.slug} max blocks`),
         parBlocks: limit(item.parBlocks, `${item.slug} par blocks`),
         parSteps: limit(item.parSteps, `${item.slug} par steps`),
+        world,
+        layouts,
+        starter: starter.program,
         translations: {
           en: {
             title: text(
@@ -589,6 +657,42 @@ export class AdminCatalogService {
       };
     });
     return { order, translations, challenges };
+  }
+  private validateWorld(value: unknown, label: string): GridWorldDefinition {
+    try {
+      const world = value as GridWorldDefinition;
+      new GridRuntime(world);
+      if (world.width > 12 || world.height > 12)
+        throw new Error("grid dimensions must not exceed 12 by 12");
+      const cells = world.blocked.map((cell) => `${cell.x},${cell.y}`);
+      if (new Set(cells).size !== cells.length)
+        throw new Error("blocked cells must be unique");
+      return world;
+    } catch (reason) {
+      throw new BadRequestException(
+        `${label}: ${reason instanceof Error ? reason.message : "invalid grid"}`,
+      );
+    }
+  }
+  private programTools(statements: readonly Statement[]): EditorTool[] {
+    const tools: EditorTool[] = [];
+    for (const statement of statements) {
+      if (statement.type === "moveForward") tools.push("moveForward");
+      else if (statement.type === "turnLeft" || statement.type === "turnRight")
+        tools.push("turn");
+      else if (statement.type === "repeat") {
+        tools.push("repeat", ...this.programTools(statement.body));
+      } else if (statement.type === "if") {
+        tools.push("ifPathAhead", ...this.programTools(statement.body));
+      } else {
+        tools.push(
+          "ifElsePathAhead",
+          ...this.programTools(statement.thenBody),
+          ...this.programTools(statement.elseBody),
+        );
+      }
+    }
+    return tools;
   }
   private async audit(
     manager: EntityManager,

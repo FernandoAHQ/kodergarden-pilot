@@ -7,6 +7,7 @@ import type {
   CampaignResponseV1,
   CatalogCampaignDefinition,
 } from "@kodergarden/shared";
+import { ChallengeMechanicsEditor } from "./ChallengeMechanicsEditor.js";
 
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -538,6 +539,7 @@ function DraftEditor({
                   <fieldset><legend>Allowed blocks</legend><div className="tool-checkboxes">{(["moveForward","turn","repeat","ifPathAhead","ifElsePathAhead"] as const).map(tool=><label key={tool}><input type="checkbox" checked={challenge.allowed.includes(tool)} onChange={event=>updateChallenge(challenge.slug,{allowed:event.target.checked?[...challenge.allowed,tool]:challenge.allowed.filter(value=>value!==tool)})}/>{tool}</label>)}</div></fieldset>
                   <div className="limit-fields">{(["maxBlocks","parBlocks","parSteps"] as const).map(field=><label key={field}>{field}<input type="number" min="1" value={challenge[field]??""} placeholder="None" onChange={event=>updateChallenge(challenge.slug,{[field]:event.target.value===""?null:Number(event.target.value)})}/></label>)}</div>
                 </div>
+                <ChallengeMechanicsEditor challenge={challenge} onUpdate={(change) => updateChallenge(challenge.slug, change)}/>
                 {(["en", "es"] as const).map((locale) => (
                   <fieldset key={locale}>
                     <legend>{locale === "en" ? "English" : "Spanish"}</legend>
