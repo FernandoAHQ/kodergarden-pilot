@@ -10,19 +10,29 @@
     "test": "tsc -p tsconfig.json && node dist/live-session.service.test.js && node dist/live.gateway.test.js",
     "test:live-load": "pnpm build && node dist/live-load.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+    ,"migration:run": "pnpm build && typeorm migration:run -d dist/database.js"
+    ,"migration:revert": "pnpm build && typeorm migration:revert -d dist/database.js"
+    ,"catalog:seed": "pnpm build && node dist/catalog/seed.js"
+    ,"test:database": "pnpm build && node dist/catalog/catalog.database.test.js"
+    ,"admin:seed": "pnpm build && node dist/auth/seed.js"
   },
   "dependencies": {
     "@kodergarden/engine": "workspace:*",
     "@kodergarden/language": "workspace:*",
     "@kodergarden/shared": "workspace:*",
     "@nestjs/common": "^12.1.2",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^12.1.2",
     "@nestjs/platform-express": "^12.1.2",
     "@nestjs/platform-socket.io": "^12.1.2",
+    "@nestjs/typeorm": "^12.0.2",
     "@nestjs/websockets": "^12.1.2",
+    "dotenv": "^17.4.2",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "typeorm": "^0.3.31"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

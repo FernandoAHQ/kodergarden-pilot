@@ -1,9 +1,15 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import { Module } from "@nestjs/common";
 import { io, type Socket } from "socket.io-client";
 import { program } from "@kodergarden/language";
 import type { CreateSessionResult, JoinSessionResult, LiveResult, LiveSessionSnapshot, PilotSessionExport } from "@kodergarden/shared";
-import { AppModule } from "./app.module.js";
+import { allChallenges } from "@kodergarden/shared";
+import { LiveGateway } from "./live.gateway.js";
+import { LiveSessionService } from "./live-session.service.js";
+
+@Module({ providers: [{ provide: LiveSessionService, useFactory: () => new LiveSessionService({ challenges: allChallenges }) }, LiveGateway] })
+class TestAppModule {}
 
 let passed = 0;
 const assert = (condition: unknown, message: string): void => { if (!condition) throw new Error(message); passed += 1; };
@@ -12,7 +18,7 @@ const emit = <T>(socket: Socket, event: string, payload: unknown): Promise<T> =>
 const expectReject = async (code: string, action: () => Promise<unknown>): Promise<void> => { try { await action(); throw new Error(`Expected ${code}`); } catch (error) { assert(error instanceof Error && error.message === code, `socket rejects ${code}`); } };
 const nextSnapshot = (socket: Socket): Promise<LiveSessionSnapshot> => new Promise((resolve) => socket.once("session:snapshot", resolve));
 
-const app = await NestFactory.create(AppModule, { logger: false });
+const app = await NestFactory.create(TestAppModule, { logger: false });
 await app.listen(0, "127.0.0.1");
 const address = app.getHttpServer().address() as { port: number };
 const url = `http://127.0.0.1:${address.port}`;

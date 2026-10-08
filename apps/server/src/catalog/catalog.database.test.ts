@@ -1,0 +1,45 @@
+import { DataSource } from "typeorm";
+import { catalogEntities, CampaignEntity, CampaignRevisionEntity } from "./catalog.entities.js";
+import { InitialCatalogSchema1791394000000 } from "../migrations/1791394000000-InitialCatalogSchema.js";
+import { AdminAuthSchema1791395000000 } from "../migrations/1791395000000-AdminAuthSchema.js";
+import { seedCatalog } from "./seed-catalog.js";
+import { CatalogService } from "./catalog.service.js";
+import { authEntities, AdminSessionEntity, AdminUserEntity } from "../auth/auth.entities.js";
+import { seedAdmin } from "../auth/seed-admin.js";
+import { AuthService, type ResponseLike } from "../auth/auth.service.js";
+import { CurriculumDrafts1791396000000 } from "../migrations/1791396000000-CurriculumDrafts.js";
+import { TeamRoles1791397000000 } from "../migrations/1791397000000-TeamRoles.js";
+import { AdminCatalogService } from "./admin-catalog.service.js";
+import { CurriculumAuditEventEntity } from "./catalog.entities.js";
+
+const url = process.env.DATABASE_URL ?? "";
+if (!/kodergarden_test(?:\?|$)/.test(url)) throw new Error("Database tests require a DATABASE_URL whose database is named kodergarden_test");
+const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000, TeamRoles1791397000000], synchronize: false });
+await dataSource.initialize();
+try {
+  await dataSource.dropDatabase(); await dataSource.runMigrations();
+  await seedCatalog(dataSource); await seedCatalog(dataSource);
+  const campaignRepo=dataSource.getRepository(CampaignEntity); const revisionRepo=dataSource.getRepository(CampaignRevisionEntity);
+  const service=new CatalogService(campaignRepo,revisionRepo);
+  const catalog=await service.summaries("en");
+  if(catalog.campaigns.length!==2)throw new Error("seed must be idempotent");
+  const foundations=(await service.campaign("foundations","es")).campaign;
+  if(foundations.challenges.length!==13||foundations.challenges[12]?.worldVariants?.length!==4)throw new Error("seeded catalog must preserve challenges and dynamic layouts");
+  if(!foundations.revisionId)throw new Error("published campaign must expose a revision id");
+  let duplicateRejected=false;try{await dataSource.query(`INSERT INTO campaign_revisions(campaign_id,version,status,kind,display_order) SELECT campaign_id,version,status,kind,display_order FROM campaign_revisions LIMIT 1`);}catch{duplicateRejected=true;}if(!duplicateRejected)throw new Error("revision uniqueness constraint missing");
+  if(await seedAdmin(dataSource,"TEAM@EXAMPLE.COM","correct-horse-battery-staple","Team Admin")!=="created")throw new Error("first admin must be created");
+  if(await seedAdmin(dataSource,"team@example.com","different-password","Ignored")!=="exists")throw new Error("admin seed must be idempotent");
+  const auth=new AuthService(dataSource.getRepository(AdminUserEntity),dataSource.getRepository(AdminSessionEntity));
+  let cookie="";const response:ResponseLike={cookie:(name,value)=>{cookie=`${name}=${value}`;},clearCookie:()=>{cookie="";}};
+  const session=await auth.login("team@example.com","correct-horse-battery-staple",{headers:{},ip:"127.0.0.1"},response);
+  if(!cookie||session.user.email!=="team@example.com")throw new Error("admin login must issue a session cookie");
+  const request={headers:{cookie,"x-kodergarden-csrf":session.csrfToken},ip:"127.0.0.1"};
+  if((await auth.current(request)).user.id!==session.user.id)throw new Error("issued admin session must authenticate");
+  await auth.logout(request,response);
+  let rejected=false;try{await auth.current(request);}catch{rejected=true;}if(!rejected)throw new Error("logout must revoke the admin session");
+  const viewer=await auth.createMember({email:"viewer@example.com",displayName:"Curriculum Viewer",password:"viewer-password-2026",role:"viewer"});if(viewer.role!=="viewer"||(await auth.team()).members.length!==2)throw new Error("team members and roles must persist");const disabledViewer=await auth.updateMember(viewer.id,{disabled:true});if(!disabledViewer.disabled)throw new Error("team members must be disableable");
+  const admin=await dataSource.getRepository(AdminUserEntity).findOneByOrFail({email:"team@example.com"});const adminCatalog=new AdminCatalogService(dataSource,service);const original=(await service.campaign("foundations","en")).campaign;const created=await adminCatalog.createDraft("foundations",admin.id);if(created.draft.version!==2)throw new Error("draft must increment the published version");const changed={...created.draft,translations:{...created.draft.translations,en:{...created.draft.translations.en,title:"Foundations revised"}}};await adminCatalog.updateDraft(created.draft.id,{order:changed.order,translations:changed.translations,challenges:changed.challenges},admin.id);if((await service.campaign("foundations","en")).campaign.titleKey!==original.titleKey)throw new Error("draft edits must not reach learners");if((await adminCatalog.preview(created.draft.id,"en")).campaign.titleKey!=="Foundations revised")throw new Error("draft preview must expose draft copy");const published=await adminCatalog.publish(created.draft.id,admin.id);if(published.campaign.revisionId===original.revisionId||(await service.campaign("foundations","en")).campaign.titleKey!=="Foundations revised")throw new Error("publish must atomically advance the learner revision");if(await dataSource.getRepository(CurriculumAuditEventEntity).countBy({revisionId:created.draft.id})!==3)throw new Error("draft lifecycle must be audited");
+  const structural=await adminCatalog.createDraft("garden-expedition",admin.id);if(!(await adminCatalog.validateDraft(structural.draft.id)).valid)throw new Error("seeded draft reference solutions must validate");const duplicated=await adminCatalog.duplicateChallenge(structural.draft.id,structural.draft.challenges[0]!.slug,"new-structural-challenge",admin.id);if(duplicated.draft.challenges.length!==structural.draft.challenges.length+1)throw new Error("challenge duplication must clone into the draft");const newChallenge=duplicated.draft.challenges.find(item=>item.slug==="new-structural-challenge")!;const configured={...newChallenge,order:1,allowed:["moveForward"] as const,maxBlocks:3,parBlocks:null,parSteps:null,world:{...newChallenge.world,robot:{...newChallenge.world.robot,direction:"north" as const}},layouts:[{slug:"alternate-route",order:1,world:newChallenge.world}],starter:{version:1 as const,statements:[{type:"moveForward" as const}]}};const reordered=duplicated.draft.challenges.filter(item=>item.slug!==configured.slug).map((item,index)=>({...item,order:index+2}));const updated=await adminCatalog.updateDraft(structural.draft.id,{order:duplicated.draft.order,translations:duplicated.draft.translations,challenges:[configured,...reordered]},admin.id);const savedMechanics=updated.draft.challenges[0];if(savedMechanics?.slug!==configured.slug||savedMechanics.maxBlocks!==3)throw new Error("challenge order, tools, and limits must persist");if(savedMechanics.world.robot.direction!=="north"||savedMechanics.layouts[0]?.slug!=="alternate-route"||savedMechanics.starter.statements[0]?.type!=="moveForward")throw new Error("grid, dynamic layouts, and starter program must persist");const removed=await adminCatalog.removeChallenge(structural.draft.id,configured.slug,admin.id);if(removed.draft.challenges.some(item=>item.slug===configured.slug))throw new Error("draft challenge removal must persist");
+  const history=await adminCatalog.history("foundations");if(history.revisions.length!==2||history.events.length!==3)throw new Error("revision and audit history must be visible");const restored=await adminCatalog.restoreRevision("foundations",original.revisionId,admin.id);if(restored.draft.version!==3||restored.draft.translations.en.title===changed.translations.en.title)throw new Error("historical revisions must restore into a new draft");
+  console.log("database: catalog, admin sessions, team roles, validation, history, recovery, and publishing passed");
+} finally { await dataSource.destroy(); }

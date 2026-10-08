@@ -1,6 +1,6 @@
 import { countBlocks, program } from "@kodergarden/language";
 import { executeProgram, GridRuntime } from "@kodergarden/engine";
-import { campaigns, challengeBelongsToCampaign, gardenExpeditionChallenges, getCampaign } from "@kodergarden/shared";
+import { campaigns, challengeBelongsToCampaign, gardenExpeditionChallenges, getCampaign, selectChallengeWorld } from "@kodergarden/shared";
 import { translate } from "../i18n.js";
 import { availableTools, challenges, evaluateChallenge } from "./challenges.js";
 import { completeChallenge, emptyProgress, isUnlocked } from "./progress.js";
@@ -15,7 +15,7 @@ assert(!evaluateChallenge(challenges[7]!,true,7).complete,"rejects solution abov
 let progress=emptyProgress();assert(isUnlocked(1,progress,challenges.map(x=>x.id)),"first challenge is unlocked");progress=completeChallenge(progress,challenges[0]!.id);assert(isUnlocked(2,progress,challenges.map(x=>x.id)),"completion unlocks next challenge");
 assert(translate("en","c.01.title")==="First Steps","resolves English content");assert(translate("es","c.01.title")==="Primeros pasos","resolves Spanish content");assert(translate("es","missing.key")==="missing.key","fallback is deterministic");
 const ast=program([{type:"repeat",count:2,body:[{type:"moveForward"}]}]);assert(JSON.stringify(ast)===JSON.stringify(JSON.parse(JSON.stringify(ast))),"AST is language neutral");
-const choiceSolution={version:2,statements:[{type:"repeat",count:3,body:[{type:"ifElse",condition:{type:"pathAhead"},thenBody:[{type:"moveForward"}],elseBody:[{type:"turnLeft"}]}]}]} as const;const choiceResult=executeProgram(choiceSolution,new GridRuntime(challenges[12]!.world));assert(choiceResult.succeeded&&countBlocks(choiceSolution)<=challenges[12]!.maxBlocks!,"If / Else challenge has a valid four-block solution");
+const choiceSolution={version:2,statements:[{type:"repeat",count:3,body:[{type:"ifElse",condition:{type:"pathAhead"},thenBody:[{type:"moveForward"}],elseBody:[{type:"turnLeft"}]}]}]} as const;const ifElseChallenge=challenges[12]!;assert(ifElseChallenge.worldVariants?.length===4,"If / Else challenge defines four layout variants");for(const variant of ifElseChallenge.worldVariants??[]){const choiceResult=executeProgram(choiceSolution,new GridRuntime(variant.world));assert(choiceResult.succeeded&&countBlocks(choiceSolution)<=ifElseChallenge.maxBlocks!,`If / Else solution handles ${variant.id}`);}const firstLayout=selectChallengeWorld(ifElseChallenge,null,()=>0);const secondLayout=selectChallengeWorld(ifElseChallenge,firstLayout.layoutId,()=>0);assert(firstLayout.layoutId!==secondLayout.layoutId,"layout selection avoids an immediate repeat");
 assert(challenges[0]!.world===challenges[0]!.world,"localized presentation shares challenge mechanics");
 assert(campaigns.length===2&&getCampaign("foundations")?.challenges.length===13,"campaign registry contains Foundations");
 assert(gardenExpeditionChallenges.length===8&&gardenExpeditionChallenges.every((item,index)=>item.order===index+1),"Garden Expedition contains eight ordered challenges");

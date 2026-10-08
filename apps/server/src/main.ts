@@ -3,11 +3,13 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NestFactory } from "@nestjs/core";
+import { DataSource } from "typeorm";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module.js";
 import { allowedOrigins, isProduction } from "./deployment.js";
 
 const app = await NestFactory.create<NestExpressApplication>(AppModule);
+if (await app.get(DataSource).showMigrations()) throw new Error("Database migrations are pending; run pnpm --filter @kodergarden/server migration:run");
 const origins = allowedOrigins();
 if (origins.length > 0) app.enableCors({ origin: [...origins], credentials: false });
 
