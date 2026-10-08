@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import type { AdminDraftChallenge } from "@kodergarden/shared";
+import type { Program } from "@kodergarden/language";
 import type { Direction, GridWorldDefinition } from "@kodergarden/engine";
 import { VisualEditor } from "../editor/VisualEditor.js";
 import {
@@ -12,8 +13,8 @@ type Challenge = AdminDraftChallenge;
 type PaintMode = "blocked" | "robot" | "goal";
 
 let editorIdentity = 0;
-const editorProgram = (challenge: Challenge): EditorProgram =>
-  fromExecutableProgram(challenge.starter, () => `admin-${editorIdentity++}`);
+const editorProgram = (program: Program): EditorProgram =>
+  fromExecutableProgram(program, () => `admin-${editorIdentity++}`);
 
 function resizeWorld(
   world: GridWorldDefinition,
@@ -117,13 +118,13 @@ function GridPainter({
   );
 }
 
-function StarterEditor({ challenge, onUpdate }: { challenge: Challenge; onUpdate: (change: Partial<Challenge>) => void }) {
-  const [program, setProgram] = useState(() => editorProgram(challenge));
+function ProgramEditor({ title, description, source, allowed, onChange }: { title: string; description: string; source: Program; allowed: Challenge["allowed"]; onChange: (program: Program) => void }) {
+  const [program, setProgram] = useState(() => editorProgram(source));
   const change = (next: EditorProgram) => {
     setProgram(next);
-    onUpdate({ starter: toExecutableProgram(next) });
+    onChange(toExecutableProgram(next));
   };
-  return <div className="admin-starter-editor"><h3>Starter program</h3><p>Blocks placed here appear in the learner workspace when this challenge opens.</p><VisualEditor program={program} allowed={challenge.allowed} onChange={change} activePath={null} conditionResult={null} disabled={false} onUndo={() => undefined} onRedo={() => undefined} canUndo={false} canRedo={false} onRestore={() => change({ statements: [] })}/></div>;
+  return <div className="admin-starter-editor"><h3>{title}</h3><p>{description}</p><VisualEditor program={program} allowed={allowed} onChange={change} activePath={null} conditionResult={null} disabled={false} onUndo={() => undefined} onRedo={() => undefined} canUndo={false} canRedo={false} onRestore={() => change({ statements: [] })}/></div>;
 }
 
 export function ChallengeMechanicsEditor({ challenge, onUpdate }: { challenge: Challenge; onUpdate: (change: Partial<Challenge>) => void }) {
@@ -143,6 +144,7 @@ export function ChallengeMechanicsEditor({ challenge, onUpdate }: { challenge: C
       <GridPainter label={`Dynamic layout ${index + 1}`} world={layout.world} onChange={(world) => updateLayout(index, world)}/>
     </div>)}
     <button className="admin-secondary" onClick={addLayout}>+ Add dynamic layout</button>
-    <StarterEditor key={challenge.slug} challenge={challenge} onUpdate={onUpdate}/>
+    <ProgramEditor key={`${challenge.slug}-starter`} title="Starter program" description="Blocks placed here appear in the learner workspace when this challenge opens." source={challenge.starter} allowed={challenge.allowed} onChange={(starter) => onUpdate({ starter })}/>
+    <ProgramEditor key={`${challenge.slug}-reference`} title="Reference solution" description="This program must solve the default grid and every dynamic layout before publishing." source={challenge.referenceSolution ?? { version: 1, statements: [] }} allowed={challenge.allowed} onChange={(referenceSolution) => onUpdate({ referenceSolution })}/>
   </div>;
 }

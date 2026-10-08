@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
-import type { AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, CampaignResponseV1 } from "@kodergarden/shared";
+import type { AdminCatalogResponseV1, AdminDraftResponseV1, AdminDraftUpdateV1, AdminValidationResponseV1, CampaignResponseV1 } from "@kodergarden/shared";
 import { AdminCatalogService } from "../catalog/admin-catalog.service.js";
 import { AuthService, type RequestLike } from "./auth.service.js";
 
@@ -19,6 +19,8 @@ export class AdminController {
   async updateDraft(@Param("id") id:string,@Body() body:AdminDraftUpdateV1,@Req() request:RequestLike):Promise<AdminDraftResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.updateDraft(id,body,user.id);}
   @Get("drafts/:id/preview") @Header("Cache-Control", "no-store")
   async preview(@Param("id") id:string,@Query("locale") locale:string|undefined,@Req() request:RequestLike):Promise<CampaignResponseV1>{await this.auth.current(request);return this.catalog.preview(id,locale);}
+  @Get("drafts/:id/validate") @Header("Cache-Control", "no-store")
+  async validateDraft(@Param("id") id:string,@Req() request:RequestLike):Promise<AdminValidationResponseV1>{await this.auth.current(request);return this.catalog.validateDraft(id);}
   @Post("drafts/:id/publish") @Header("Cache-Control", "no-store")
   async publish(@Param("id") id:string,@Req() request:RequestLike):Promise<CampaignResponseV1>{const {user}=await this.auth.requireCsrf(request);return this.catalog.publish(id,user.id);}
   @Post("drafts/:id/challenges") @Header("Cache-Control", "no-store")

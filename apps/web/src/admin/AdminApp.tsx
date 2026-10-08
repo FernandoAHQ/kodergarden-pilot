@@ -4,6 +4,7 @@ import type {
   AdminDraft,
   AdminDraftResponseV1,
   AdminSessionResponseV1,
+  AdminValidationResponseV1,
   CampaignResponseV1,
   CatalogCampaignDefinition,
 } from "@kodergarden/shared";
@@ -28,6 +29,7 @@ export function AdminApp() {
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
     [draft, setDraft] = useState<AdminDraft | null>(null),
+    [validation, setValidation] = useState<AdminValidationResponseV1 | null>(null),
     [preview, setPreview] = useState<CatalogCampaignDefinition | null>(null),
     [previewLocale, setPreviewLocale] = useState<"en" | "es">("en");
   const loadCatalog = async () =>
@@ -109,6 +111,7 @@ export function AdminApp() {
           );
       setDraft(result.draft);
       setPreview(null);
+      setValidation(null);
       await loadCatalog();
     } catch (reason) {
       setMessage(
@@ -210,6 +213,20 @@ export function AdminApp() {
     } finally {
       setBusy(false);
     }
+  };
+  const validateDraft = async () => {
+    if (!draft) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const saved = await mutate<AdminDraftResponseV1>(`/api/admin/drafts/${draft.id}`, "PATCH", { order: draft.order, translations: draft.translations, challenges: draft.challenges });
+      setDraft(saved.draft);
+      const result = await json<AdminValidationResponseV1>(await fetch(`/api/admin/drafts/${draft.id}/validate`));
+      setValidation(result);
+      setMessage(result.valid ? "Draft is ready to publish." : `Validation found ${result.issues.length} issue${result.issues.length === 1 ? "" : "s"}.`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Unable to validate draft");
+    } finally { setBusy(false); }
   };
   const setCampaignCopy = (
     locale: "en" | "es",
@@ -339,6 +356,8 @@ export function AdminApp() {
             onSave={() => void save()}
             onPublish={() => void publish()}
             onPreview={(locale) => void showPreview(locale)}
+            onValidate={() => void validateDraft()}
+            validation={validation}
             setCampaignCopy={setCampaignCopy}
             setChallenge={setChallenge}
             updateChallenge={updateChallenge}
@@ -423,6 +442,8 @@ function DraftEditor({
   onSave,
   onPublish,
   onPreview,
+  onValidate,
+  validation,
   setCampaignCopy,
   setChallenge,
   updateChallenge,
@@ -438,6 +459,8 @@ function DraftEditor({
   onSave: () => void;
   onPublish: () => void;
   onPreview: (locale: "en" | "es") => void;
+  onValidate: () => void;
+  validation: AdminValidationResponseV1 | null;
   setCampaignCopy: (
     locale: "en" | "es",
     field: "title" | "description",
@@ -469,6 +492,7 @@ function DraftEditor({
           <button disabled={busy} onClick={() => onPreview("es")}>
             Preview ES
           </button>
+          <button disabled={busy} onClick={onValidate}>Validate</button>
           <button className="admin-primary" disabled={busy} onClick={onSave}>
             Save draft
           </button>
@@ -477,6 +501,7 @@ function DraftEditor({
           </button>
         </div>
       </div>
+      {validation && <section className={`draft-validation ${validation.valid ? "is-valid" : ""}`}><strong>{validation.valid ? "✓ Ready to publish" : "Validation issues"}</strong>{!validation.valid && <ul>{validation.issues.map((issue, index) => <li key={`${issue.challengeSlug}-${issue.code}-${index}`}><b>{issue.challengeSlug ?? "Campaign"}</b> — {issue.message}</li>)}</ul>}</section>}
       {preview && (
         <section className="draft-preview">
           <div>

@@ -9,6 +9,8 @@ import type {
   AdminDraft,
   AdminDraftResponseV1,
   AdminDraftUpdateV1,
+  AdminValidationIssue,
+  AdminValidationResponseV1,
   CampaignResponseV1,
 } from "@kodergarden/shared";
 import { DataSource, type EntityManager } from "typeorm";
@@ -23,7 +25,7 @@ import {
 } from "./catalog.entities.js";
 import { CatalogService } from "./catalog.service.js";
 import type { EditorTool } from "@kodergarden/shared";
-import { GridRuntime, type GridWorldDefinition } from "@kodergarden/engine";
+import { executeProgram, GridRuntime, type GridWorldDefinition } from "@kodergarden/engine";
 import { countBlocks, validateProgram, type Statement } from "@kodergarden/language";
 
 const requiredLocales = ["en", "es"] as const;
@@ -247,6 +249,7 @@ export class AdminCatalogService {
             allowed: item.allowed,
             world: item.world,
             starter: item.starter,
+            referenceSolution: item.referenceSolution,
             maxBlocks: item.maxBlocks,
             parBlocks: item.parBlocks,
             parSteps: item.parSteps,
@@ -421,6 +424,12 @@ export class AdminCatalogService {
         .getRepository(CampaignEntity)
         .findOneBy({ id: revision.campaignId });
       if (!campaign) throw new NotFoundException("Campaign not found");
+      const validation = this.validateLoadedRevision(revision);
+      if (!validation.valid)
+        throw new BadRequestException({
+          message: "Draft must pass validation before publishing",
+          issues: validation.issues,
+        });
       this.catalog.mapRevision(campaign, revision, "en");
       this.catalog.mapRevision(campaign, revision, "es");
       const now = new Date();
@@ -445,6 +454,12 @@ export class AdminCatalogService {
         campaign: this.catalog.mapRevision(campaign, revision, "en"),
       };
     });
+  }
+
+  async validateDraft(id: string): Promise<AdminValidationResponseV1> {
+    const revision = await this.loadedRevision(this.dataSource.manager, id);
+    if (revision.status !== "draft") throw new NotFoundException("Draft not found");
+    return this.validateLoadedRevision(revision);
   }
 
   private async loadedRevision(manager: EntityManager, id: string) {
@@ -512,6 +527,7 @@ export class AdminCatalogService {
                 world: layout.world,
               })),
             starter: challenge.starter,
+            referenceSolution: challenge.referenceSolution,
             translations: { en: challengeCopy("en"), es: challengeCopy("es") },
           };
         }),
@@ -583,6 +599,15 @@ export class AdminCatalogService {
         throw new BadRequestException(
           `${item.slug} starter program exceeds its maximum block count`,
         );
+      let referenceSolution = null;
+      if (item.referenceSolution !== null) {
+        const reference = validateProgram(item.referenceSolution);
+        if (!reference.ok)
+          throw new BadRequestException(
+            `${item.slug} reference solution: ${reference.errors.join(", ")}`,
+          );
+        referenceSolution = reference.program;
+      }
       if (!Array.isArray(item.layouts))
         throw new BadRequestException(`${item.slug} layouts must be an array`);
       const layoutSlugs = new Set<string>();
@@ -618,6 +643,7 @@ export class AdminCatalogService {
         world,
         layouts,
         starter: starter.program,
+        referenceSolution,
         translations: {
           en: {
             title: text(
@@ -693,6 +719,39 @@ export class AdminCatalogService {
       }
     }
     return tools;
+  }
+  private validateLoadedRevision(revision: CampaignRevisionEntity): AdminValidationResponseV1 {
+    const issues: AdminValidationIssue[] = [];
+    for (const challenge of revision.challenges) {
+      const solution = challenge.referenceSolution;
+      if (!solution) continue;
+      const validated = validateProgram(solution);
+      if (!validated.ok) {
+        issues.push({ challengeSlug: challenge.slug, code: "reference.invalid", message: validated.errors.join(", ") });
+        continue;
+      }
+      const disallowed = this.programTools(validated.program.statements).find((tool) => !challenge.allowed.includes(tool));
+      if (disallowed)
+        issues.push({ challengeSlug: challenge.slug, code: "reference.disallowed", message: `Reference solution uses disallowed block ${disallowed}` });
+      const blocks = countBlocks(validated.program);
+      if (challenge.maxBlocks !== null && blocks > challenge.maxBlocks)
+        issues.push({ challengeSlug: challenge.slug, code: "reference.maxBlocks", message: `Reference solution uses ${blocks} blocks; maximum is ${challenge.maxBlocks}` });
+      if (challenge.parBlocks !== null && blocks > challenge.parBlocks)
+        issues.push({ challengeSlug: challenge.slug, code: "reference.parBlocks", message: `Reference solution misses the ${challenge.parBlocks}-block target` });
+      const worlds = [{ slug: "default", world: challenge.world }, ...challenge.layouts.map((layout) => ({ slug: layout.slug, world: layout.world }))];
+      for (const { slug, world } of worlds) {
+        try {
+          const result = executeProgram(validated.program, new GridRuntime(world));
+          if (!result.succeeded)
+            issues.push({ challengeSlug: challenge.slug, code: "reference.unsolved", message: `Reference solution does not solve layout ${slug}` });
+          if (challenge.parSteps !== null && result.executionSteps > challenge.parSteps)
+            issues.push({ challengeSlug: challenge.slug, code: "reference.parSteps", message: `Reference solution takes ${result.executionSteps} steps on ${slug}; target is ${challenge.parSteps}` });
+        } catch (reason) {
+          issues.push({ challengeSlug: challenge.slug, code: "layout.invalid", message: `${slug}: ${reason instanceof Error ? reason.message : "invalid layout"}` });
+        }
+      }
+    }
+    return { version: 1, valid: issues.length === 0, issues };
   }
   private async audit(
     manager: EntityManager,

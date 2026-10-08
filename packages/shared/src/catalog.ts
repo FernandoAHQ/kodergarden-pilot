@@ -58,6 +58,7 @@ export interface AdminDraftChallenge {
   readonly world: GridWorldDefinition;
   readonly layouts: readonly { readonly slug: string; readonly order: number; readonly world: GridWorldDefinition }[];
   readonly starter: Program;
+  readonly referenceSolution: Program | null;
   readonly translations: { readonly en: LocalizedChallengeCopy; readonly es: LocalizedChallengeCopy };
 }
 export interface AdminDraft {
@@ -67,3 +68,5 @@ export interface AdminDraft {
 }
 export interface AdminDraftResponseV1 { readonly version: 1; readonly draft: AdminDraft }
 export interface AdminDraftUpdateV1 { readonly order: number; readonly translations: AdminDraft["translations"]; readonly challenges: readonly AdminDraftChallenge[] }
+export interface AdminValidationIssue { readonly challengeSlug: string | null; readonly code: string; readonly message: string }
+export interface AdminValidationResponseV1 { readonly version: 1; readonly valid: boolean; readonly issues: readonly AdminValidationIssue[] }
