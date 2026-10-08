@@ -95,7 +95,11 @@ The interpreter emits a semantic `conditionEvaluated` event with the authored st
 
 ## Campaigns, Practice Mode, and localization
 
-The shared campaign registry groups language-neutral challenges into stable, reusable collections. **Foundations** contains the twelve guided Practice activities; **Garden Expedition** is an eight-stage advanced campaign with sequential local progress, persistent best metrics, and one-to-three-star efficiency targets. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
+The shared campaign registry groups language-neutral challenges into stable, reusable collections. **Foundations** contains sixteen guided Practice activities; **Garden Expedition** is an eight-stage advanced campaign with sequential local progress, persistent best metrics, and one-to-three-star efficiency targets. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
+
+Foundations uses intentional open lawns and connected hedge corridors. Challenges 13, 14, and 16 add deterministic shifting hedges that visibly move before Pip's first instruction, so sensing occurs only after the garden settles. Practice solutions must satisfy the authored block limit, use the newly introduced tool when required, avoid hedge collisions, and solve every declared garden layout. Live Classroom intentionally evaluates only the single layout shown for that round.
+
+During development, `http://localhost:5173/lab/dynamic-garden` opens the isolated Dynamic Garden Lab that records the Shifting Hedge decision and retains the two rejected alternatives for comparison. It is not linked from normal navigation and is removed from production JavaScript builds. See `docs/dynamic-garden-lab.md` for the review protocol.
 
 Local browser storage retains the selected `en`/`es` locale, legacy Practice completion, and versioned per-campaign challenge results. There are no accounts or remote progress records.
 

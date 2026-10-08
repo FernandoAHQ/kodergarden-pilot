@@ -7,6 +7,9 @@ const assert = (condition: boolean, message: string): void => { if (!condition) 
 
 let state = initialPlaybackState(snapshot);
 state = applyExecutionEvent(state, { type: "programStarted", state: snapshot });
+const shifted={...snapshot,shiftingHedges:[{id:"gate",position:{x:1,y:0}}]};
+state = applyExecutionEvent(state, { type:"runtimeEffect",path:[],effect:{type:"worldChanged",objectId:"gate",from:{x:0,y:0},to:{x:1,y:0},cause:"before-run"},state:shifted });
+assert(state.executionSteps===0&&state.snapshot===shifted,"world changes animate without counting as learner commands");
 state = applyExecutionEvent(state, { type: "statementStarted", path: [0], statementType: "moveForward" });
 assert(state.status === "running" && state.activePath?.[0] === 0, "starts and highlights a statement");
 state = applyExecutionEvent(state, { type: "runtimeEffect", path: [0], effect: { type: "moved", from: { x: 0, y: 0 }, to: { x: 1, y: 0 } }, state: moved });
@@ -16,5 +19,6 @@ assert(state.collision === "obstacle" && state.executionSteps === 2, "exposes co
 state = applyExecutionEvent(state, { type: "conditionEvaluated", path: [2], condition: { type: "path", direction: "left" }, result: false });
 assert(state.conditionResult?.result === false && state.message.includes("NO"), "exposes condition evaluation feedback");
 assert(playbackDelay({ type: "programStarted", state: snapshot }, 2) < playbackDelay({ type: "programStarted", state: snapshot }, 1), "speed only changes playback timing");
+assert(playbackDelay({ type:"runtimeEffect",path:[],effect:{type:"worldChanged",objectId:"gate",from:{x:0,y:0},to:{x:1,y:0},cause:"before-run"},state:shifted },1)>playbackDelay({type:"runtimeEffect",path:[0],effect:{type:"moved",from:{x:0,y:0},to:{x:1,y:0}},state:moved},1),"hedge movement gets a visible animation pause");
 
 console.log("web playback: 5 tests passed");

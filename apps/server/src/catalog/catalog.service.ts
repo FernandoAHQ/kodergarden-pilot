@@ -57,9 +57,10 @@ export class CatalogService {
       if (!Array.isArray(challenge.allowed)) throw new Error(`Invalid allowed tools for ${challenge.slug}`);
       const starter = validateProgram(challenge.starter); if (!starter.ok) throw new Error(`Invalid starter program for ${challenge.slug}`);
       const reference = challenge.referenceSolution ? validateProgram(challenge.referenceSolution) : null; if (reference && !reference.ok) throw new Error(`Invalid reference solution for ${challenge.slug}`);
+      const requiredTool = challenge.unlockKey === "turn" ? "turn" : challenge.unlockKey === "repeat" ? "repeat" : challenge.unlockKey === "if" ? "if" : challenge.unlockKey === "ifElse" ? "ifElse" : challenge.unlockKey === "while" ? "while" : challenge.unlockKey === "repeatUntil" ? "repeatUntilGoal" : null;
       return { id: challenge.slug, campaignId: campaign.slug, order: challenge.order, type: "build", titleKey: copy.title, instructionKey: copy.instruction, conceptKey: copy.concept, world: challenge.world, allowed: challenge.allowed, starter: starter.program,
         ...(challenge.layouts.length ? { worldVariants: [...challenge.layouts].sort((a,b)=>a.order-b.order).map((layout)=>({ id: layout.slug, world: layout.world })) } : {}),
-        ...(challenge.maxBlocks === null ? {} : { maxBlocks: challenge.maxBlocks }), ...(challenge.parBlocks === null ? {} : { parBlocks: challenge.parBlocks }), ...(challenge.parSteps === null ? {} : { parSteps: challenge.parSteps }), ...(challenge.unlockKey === null ? {} : { unlockKey: challenge.unlockKey }), ...(reference?.ok ? { referenceSolution: reference.program } : {}) };
+        ...(challenge.maxBlocks === null ? {} : { maxBlocks: challenge.maxBlocks }), ...(campaign.slug === "foundations" ? { maxCollisions: 0 } : {}), ...(challenge.parBlocks === null ? {} : { parBlocks: challenge.parBlocks }), ...(challenge.parSteps === null ? {} : { parSteps: challenge.parSteps }), ...(challenge.unlockKey === null ? {} : { unlockKey: challenge.unlockKey }), ...(requiredTool ? { requiredTools: [requiredTool] } : {}), ...(reference?.ok ? { referenceSolution: reference.program } : {}) };
     });
     return { id: campaign.slug, revisionId: revision.id, order: revision.order, kind: revision.kind, titleKey: translation.title, descriptionKey: translation.description, challenges };
   }

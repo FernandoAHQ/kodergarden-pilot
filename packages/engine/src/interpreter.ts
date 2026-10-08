@@ -24,6 +24,7 @@ export interface ExecutionResult<TSnapshot extends RuntimeSnapshot> {
 
 export function executeProgram<TSnapshot extends RuntimeSnapshot>(program: Program, runtime: ProgramRuntime<TSnapshot>, limits: ExecutionLimits = DEFAULT_EXECUTION_LIMITS): ExecutionResult<TSnapshot> {
   const events: ExecutionEvent<TSnapshot>[] = [{ type: "programStarted", state: runtime.snapshot() }];
+  for(const effect of runtime.beginExecution?.()??[])events.push({type:"runtimeEffect",path:[],effect,state:runtime.snapshot()});
   let executionSteps = 0;
   let controlIterations = 0;
   let goalReported = runtime.snapshot().completed;

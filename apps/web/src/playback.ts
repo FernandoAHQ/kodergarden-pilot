@@ -33,6 +33,13 @@ export function applyExecutionEvent(state: PlaybackState, event: ExecutionEvent<
     case "statementCompleted":
       return { ...state, activePath: null };
     case "runtimeEffect":
+      if (event.effect.type === "worldChanged") return {
+        ...state,
+        snapshot: event.state,
+        collision: null,
+        conditionResult: null,
+        message: "The hedges shifted before Pip started",
+      };
       return {
         ...state,
         snapshot: event.state,
@@ -52,6 +59,6 @@ export function applyExecutionEvent(state: PlaybackState, event: ExecutionEvent<
 }
 
 export const playbackDelay = (event: ExecutionEvent<GridSnapshot>, speed: number): number => {
-  const base = event.type === "runtimeEffect" ? (event.effect.type === "turned" ? 430 : 520) : event.type === "conditionEvaluated" ? 520 : event.type === "goalReached" ? 500 : event.type === "statementStarted" ? 150 : 80;
+  const base = event.type === "runtimeEffect" ? (event.effect.type === "worldChanged" ? 760 : event.effect.type === "turned" ? 430 : 520) : event.type === "conditionEvaluated" ? 520 : event.type === "goalReached" ? 500 : event.type === "statementStarted" ? 150 : 80;
   return base / speed;
 };

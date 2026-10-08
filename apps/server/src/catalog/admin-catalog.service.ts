@@ -771,6 +771,9 @@ export class AdminCatalogService {
       const disallowed = this.programTools(validated.program.statements).find((tool) => !challenge.allowed.includes(tool));
       if (disallowed)
         issues.push({ challengeSlug: challenge.slug, code: "reference.disallowed", message: `Reference solution uses disallowed block ${disallowed}` });
+      const requiredTool = challenge.unlockKey === "turn" ? "turn" : challenge.unlockKey === "repeat" ? "repeat" : challenge.unlockKey === "if" ? "if" : challenge.unlockKey === "ifElse" ? "ifElse" : challenge.unlockKey === "while" ? "while" : challenge.unlockKey === "repeatUntil" ? "repeatUntilGoal" : null;
+      if (requiredTool && !this.programTools(validated.program.statements).includes(requiredTool))
+        issues.push({ challengeSlug: challenge.slug, code: "reference.requiredTool", message: `Reference solution must use ${requiredTool}` });
       const blocks = countBlocks(validated.program);
       if (challenge.maxBlocks !== null && blocks > challenge.maxBlocks)
         issues.push({ challengeSlug: challenge.slug, code: "reference.maxBlocks", message: `Reference solution uses ${blocks} blocks; maximum is ${challenge.maxBlocks}` });
@@ -782,6 +785,8 @@ export class AdminCatalogService {
           const result = executeProgram(validated.program, new GridRuntime(world));
           if (!result.succeeded)
             issues.push({ challengeSlug: challenge.slug, code: "reference.unsolved", message: `Reference solution does not solve layout ${slug}` });
+          if (revision.kind === "guided" && result.events.some((event) => event.type === "runtimeEffect" && event.effect.type === "blocked"))
+            issues.push({ challengeSlug: challenge.slug, code: "reference.collision", message: `Reference solution collides with a hedge on ${slug}` });
           if (challenge.parSteps !== null && result.executionSteps > challenge.parSteps)
             issues.push({ challengeSlug: challenge.slug, code: "reference.parSteps", message: `Reference solution takes ${result.executionSteps} steps on ${slug}; target is ${challenge.parSteps}` });
         } catch (reason) {

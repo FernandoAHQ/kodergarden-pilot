@@ -16,6 +16,7 @@ export function GridWorld({ world, playback, hideStatus = false }: { readonly wo
     "--robot-y": playback.snapshot.robot.y,
     "--robot-turn": `${rotation[playback.snapshot.robot.direction]}deg`,
   } as CSSProperties;
+  const shiftingHedges = playback.snapshot.shiftingHedges ?? [];
 
   return (
     <div className={`world-frame ${playback.status === "success" ? "is-success" : ""}`}>
@@ -36,6 +37,12 @@ export function GridWorld({ world, playback, hideStatus = false }: { readonly wo
               </div>
             );
           })}
+          {shiftingHedges.map((hedge) => <div
+            key={hedge.id}
+            className="shifting-hedge"
+            aria-label="shifting hedge"
+            style={{ "--hedge-x": hedge.position.x, "--hedge-y": hedge.position.y } as CSSProperties}
+          ><span className="wall"><i /><i /><i /></span><b aria-hidden="true">↔</b></div>)}
           <div className={`robot-position ${playback.collision ? "is-bumping" : ""}`} style={robotStyle}>
             <div className="robot-shadow" />
             <div className="robot">

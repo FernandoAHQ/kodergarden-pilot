@@ -36,6 +36,11 @@ function resizeWorld(
       ? { x: robotPosition.x + 1, y: robotPosition.y }
       : { x: Math.max(0, robotPosition.x - 1), y: robotPosition.y };
   }
+  const shiftingHedges = world.shiftingHedges?.filter((hedge) => inside(hedge.from) && inside(hedge.to) &&
+    !(hedge.from.x === robotPosition.x && hedge.from.y === robotPosition.y) &&
+    !(hedge.to.x === robotPosition.x && hedge.to.y === robotPosition.y) &&
+    !(hedge.from.x === goal.x && hedge.from.y === goal.y) &&
+    !(hedge.to.x === goal.x && hedge.to.y === goal.y));
   return {
     width,
     height,
@@ -46,7 +51,40 @@ function resizeWorld(
     ),
     robot: { ...robotPosition, direction: world.robot.direction },
     goal,
+    ...(shiftingHedges ? { shiftingHedges } : {}),
   };
+}
+
+function ShiftingHedgeEditor({ world, onChange }: { world: GridWorldDefinition; onChange: (world: GridWorldDefinition) => void }) {
+  const hedges = world.shiftingHedges ?? [];
+  const update = (index: number, field: "id" | "fromX" | "fromY" | "toX" | "toY", raw: string) => {
+    const next = hedges.map((hedge, current) => {
+      if (current !== index) return hedge;
+      if (field === "id") return { ...hedge, id: raw };
+      const value = Number(raw) || 0;
+      if (field === "fromX") return { ...hedge, from: { ...hedge.from, x: value } };
+      if (field === "fromY") return { ...hedge, from: { ...hedge.from, y: value } };
+      if (field === "toX") return { ...hedge, to: { ...hedge.to, x: value } };
+      return { ...hedge, to: { ...hedge.to, y: value } };
+    });
+    onChange({ ...world, shiftingHedges: next });
+  };
+  const add = () => {
+    const unavailable = new Set([...world.blocked, world.robot, world.goal, ...hedges.flatMap((hedge) => [hedge.from, hedge.to])].map((cell) => `${cell.x},${cell.y}`));
+    const open = Array.from({ length: world.width * world.height }, (_, index) => ({ x:index%world.width,y:Math.floor(index/world.width) })).filter((cell) => !unavailable.has(`${cell.x},${cell.y}`));
+    if (open.length < 2) return;
+    onChange({ ...world, shiftingHedges:[...hedges,{id:`shifting-hedge-${hedges.length+1}`,from:open[0]!,to:open[1]!}] });
+  };
+  return <div className="admin-shifting-hedges">
+    <div><strong>Shifting hedges</strong><small>Each hedge visibly moves from its start to its target before Pip executes the first block.</small></div>
+    {hedges.map((hedge,index)=><div className="admin-shifting-row" key={`${hedge.id}-${index}`}>
+      <label>ID<input value={hedge.id} onChange={(event)=>update(index,"id",event.target.value)}/></label>
+      <span>From</span><label>X<input type="number" min="0" max={world.width-1} value={hedge.from.x} onChange={(event)=>update(index,"fromX",event.target.value)}/></label><label>Y<input type="number" min="0" max={world.height-1} value={hedge.from.y} onChange={(event)=>update(index,"fromY",event.target.value)}/></label>
+      <span>To</span><label>X<input type="number" min="0" max={world.width-1} value={hedge.to.x} onChange={(event)=>update(index,"toX",event.target.value)}/></label><label>Y<input type="number" min="0" max={world.height-1} value={hedge.to.y} onChange={(event)=>update(index,"toY",event.target.value)}/></label>
+      <button className="danger-button" onClick={()=>onChange({...world,shiftingHedges:hedges.filter((_,current)=>current!==index)})}>Remove</button>
+    </div>)}
+    <button className="admin-secondary" onClick={add}>+ Add shifting hedge</button>
+  </div>;
 }
 
 function GridPainter({
@@ -114,6 +152,7 @@ function GridPainter({
           return <button type="button" key={key} className={blocked.has(key) ? "is-blocked" : robot ? "is-robot" : goal ? "is-goal" : ""} aria-label={`${x}, ${y}${robot ? " robot" : goal ? " goal" : blocked.has(key) ? " obstacle" : " open"}`} onClick={() => paint(x, y)}>{robot ? "▲" : goal ? "★" : blocked.has(key) ? "×" : ""}</button>;
         })}
       </div>
+      <ShiftingHedgeEditor world={world} onChange={onChange}/>
     </section>
   );
 }

@@ -64,4 +64,19 @@ const limited = executeProgram(program([{ type: "repeat", count: 10, body: [{ ty
 assert(limited.stoppedByLimit && limited.executionSteps === 3, "stops at the execution limit");
 assert(limited.events.at(-1)?.type === "executionLimitReached", "emits the limit event");
 
-console.log("engine: 33 tests passed");
+const shiftingWorld: GridWorldDefinition = { width:4,height:3,blocked:[],robot:{x:0,y:1,direction:"east"},goal:{x:0,y:0},shiftingHedges:[{id:"gate",from:{x:1,y:0},to:{x:1,y:1}}] };
+const shiftingProgram={version:2 as const,statements:[{type:"ifElse" as const,condition:{type:"pathAhead" as const},thenBody:[{type:"moveForward" as const}],elseBody:[{type:"turnLeft" as const}]},{type:"moveForward" as const}]};
+const shifted=executeProgram(shiftingProgram,new GridRuntime(shiftingWorld));
+const worldChangeIndex=shifted.events.findIndex((event)=>event.type==="runtimeEffect"&&event.effect.type==="worldChanged");
+const conditionIndex=shifted.events.findIndex((event)=>event.type==="conditionEvaluated");
+assert(worldChangeIndex>0&&conditionIndex>worldChangeIndex,"shifting hedge finishes before sensing begins");
+assert(shifted.succeeded&&shifted.executionSteps===2,"sensing uses the shifted world without counting the shift as a command");
+equal(executeProgram(shiftingProgram,new GridRuntime(shiftingWorld)),shifted,"shifting hedge resets deterministically");
+assert(JSON.stringify(shifted.finalState).includes('"shiftingHedges"'),"dynamic positions serialize in snapshots");
+for(const invalid of [
+  {...shiftingWorld,shiftingHedges:[{id:"gate",from:{x:1,y:0},to:{x:0,y:1}}]},
+  {...shiftingWorld,blocked:[{x:1,y:1}]},
+  {...shiftingWorld,shiftingHedges:[{id:"gate",from:{x:1,y:0},to:{x:1,y:1}},{id:"gate",from:{x:2,y:2},to:{x:3,y:2}}]},
+]){let rejected=false;try{new GridRuntime(invalid);}catch{rejected=true;}assert(rejected,"invalid shifting hedge placement is rejected");}
+
+console.log("engine: 38 tests passed");
