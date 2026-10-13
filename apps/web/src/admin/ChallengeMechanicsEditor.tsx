@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.js";
 import { useState, type CSSProperties } from "react";
 import type { AdminDraftChallenge } from "@kodergarden/shared";
 import type { Program } from "@kodergarden/language";
@@ -10,7 +11,7 @@ import {
 } from "../editor/model.js";
 
 type Challenge = AdminDraftChallenge;
-type PaintMode = "blocked" | "robot" | "goal";
+type PaintMode = "blocked" | "robot" | "goal" | "item";
 
 let editorIdentity = 0;
 const editorProgram = (program: Program): EditorProgram =>
@@ -41,6 +42,7 @@ function resizeWorld(
     !(hedge.to.x === robotPosition.x && hedge.to.y === robotPosition.y) &&
     !(hedge.from.x === goal.x && hedge.from.y === goal.y) &&
     !(hedge.to.x === goal.x && hedge.to.y === goal.y));
+  const items = world.items?.filter((item) => inside(item.position));
   return {
     width,
     height,
@@ -52,6 +54,7 @@ function resizeWorld(
     robot: { ...robotPosition, direction: world.robot.direction },
     goal,
     ...(shiftingHedges ? { shiftingHedges } : {}),
+    ...(items ? { items } : {}),
   };
 }
 
@@ -70,7 +73,7 @@ function ShiftingHedgeEditor({ world, onChange }: { world: GridWorldDefinition; 
     onChange({ ...world, shiftingHedges: next });
   };
   const add = () => {
-    const unavailable = new Set([...world.blocked, world.robot, world.goal, ...hedges.flatMap((hedge) => [hedge.from, hedge.to])].map((cell) => `${cell.x},${cell.y}`));
+    const unavailable = new Set([...world.blocked, world.robot, world.goal, ...(world.items??[]).map(item=>item.position), ...hedges.flatMap((hedge) => [hedge.from, hedge.to])].map((cell) => `${cell.x},${cell.y}`));
     const open = Array.from({ length: world.width * world.height }, (_, index) => ({ x:index%world.width,y:Math.floor(index/world.width) })).filter((cell) => !unavailable.has(`${cell.x},${cell.y}`));
     if (open.length < 2) return;
     onChange({ ...world, shiftingHedges:[...hedges,{id:`shifting-hedge-${hedges.length+1}`,from:open[0]!,to:open[1]!}] });
@@ -103,6 +106,12 @@ function GridPainter({
     y: Math.floor(index / world.width),
   }));
   const paint = (x: number, y: number) => {
+    if (mode === "item") {
+      const existing = (world.items ?? []).find((item) => item.position.x === x && item.position.y === y);
+      const items = existing ? (world.items ?? []).filter((item) => item !== existing) : [...(world.items ?? []), { id: `packet-${Date.now()}-${x}-${y}`, position: { x, y } }];
+      onChange({ ...world, blocked: world.blocked.filter((cell) => cell.x !== x || cell.y !== y), items });
+      return;
+    }
     if (mode === "robot") {
       if (world.goal.x === x && world.goal.y === y) return;
       onChange({
@@ -121,7 +130,7 @@ function GridPainter({
       });
       return;
     }
-    if ((world.robot.x === x && world.robot.y === y) || (world.goal.x === x && world.goal.y === y)) return;
+    if ((world.robot.x === x && world.robot.y === y) || (world.goal.x === x && world.goal.y === y) || (world.items ?? []).some(item=>item.position.x===x&&item.position.y===y)) return;
     const key = `${x},${y}`;
     onChange({
       ...world,
@@ -141,7 +150,7 @@ function GridPainter({
         </div>
       </div>
       <div className="admin-paint-tools">
-        {(["blocked", "robot", "goal"] as const).map((value) => <button key={value} className={mode === value ? "is-active" : ""} onClick={() => setMode(value)}>{value === "blocked" ? "Obstacle" : value === "robot" ? "Robot start" : "Goal"}</button>)}
+        {(["blocked", "robot", "goal", "item"] as const).map((value) => <button key={value} className={mode === value ? "is-active" : ""} onClick={() => setMode(value)}>{value === "blocked" ? "Obstacle" : value === "robot" ? "Robot start" : value === "goal" ? "Goal" : "Seed packet"}</button>)}
         <label>Facing<select value={world.robot.direction} onChange={(event) => onChange({ ...world, robot: { ...world.robot, direction: event.target.value as Direction } })}>{(["north", "east", "south", "west"] as const).map((direction) => <option key={direction}>{direction}</option>)}</select></label>
       </div>
       <div className="admin-paint-grid" style={{ "--admin-columns": world.width } as CSSProperties}>
@@ -149,7 +158,8 @@ function GridPainter({
           const key = `${x},${y}`;
           const robot = world.robot.x === x && world.robot.y === y;
           const goal = world.goal.x === x && world.goal.y === y;
-          return <button type="button" key={key} className={blocked.has(key) ? "is-blocked" : robot ? "is-robot" : goal ? "is-goal" : ""} aria-label={`${x}, ${y}${robot ? " robot" : goal ? " goal" : blocked.has(key) ? " obstacle" : " open"}`} onClick={() => paint(x, y)}>{robot ? "▲" : goal ? "★" : blocked.has(key) ? "×" : ""}</button>;
+          const item = (world.items ?? []).some(packet=>packet.position.x===x&&packet.position.y===y);
+          return <button type="button" key={key} className={blocked.has(key) ? "is-blocked" : robot ? "is-robot" : goal ? "is-goal" : item ? "is-item" : ""} aria-label={`${x}, ${y}${robot ? " robot" : goal ? " goal" : item ? " seed packet" : blocked.has(key) ? " obstacle" : " open"}`} onClick={() => paint(x, y)}>{robot ? "▲" : goal ? "★" : item ? "✦" : blocked.has(key) ? "×" : ""}</button>;
         })}
       </div>
       <ShiftingHedgeEditor world={world} onChange={onChange}/>
@@ -167,6 +177,8 @@ function ProgramEditor({ title, description, source, allowed, onChange }: { titl
 }
 
 export function ChallengeMechanicsEditor({ challenge, onUpdate }: { challenge: Challenge; onUpdate: (change: Partial<Challenge>) => void }) {
+  const {t}=useI18n();
+  const policy=challenge.assessment??{scope:"case-family" as const,correctness:"legacy" as const,maxCollisions:null,occasion:"initial" as const};
   const updateLayout = (index: number, world: GridWorldDefinition) => onUpdate({ layouts: challenge.layouts.map((layout, current) => current === index ? { ...layout, world } : layout) });
   const addLayout = () => {
     const used = new Set(challenge.layouts.map((layout) => layout.slug));
@@ -175,7 +187,13 @@ export function ChallengeMechanicsEditor({ challenge, onUpdate }: { challenge: C
     onUpdate({ layouts: [...challenge.layouts, { slug: `layout-${number}`, order: challenge.layouts.length + 1, world: structuredClone(challenge.world) }] });
   };
   return <div className="challenge-mechanics-editor">
-    <h3>Grid and layouts</h3>
+    <fieldset><legend>{t("assessment.settings")}</legend>
+      <label>{t("assessment.activity")}<select value={challenge.type??"build"} onChange={event=>onUpdate({type:event.target.value as NonNullable<Challenge["type"]>,assessment:{...policy,scope:event.target.value==="predict"?"active-case":event.target.value==="family"?"case-family":policy.scope}})}>{["build","predict","debug","family"].map(value=><option key={value} value={value}>{t(`assessment.type.${value}`)}</option>)}</select></label>
+      <label>{t("assessment.scope")}<select value={policy.scope} onChange={event=>onUpdate({assessment:{...policy,scope:event.target.value as typeof policy.scope}})}>{["active-case","case-family"].map(value=><option key={value} value={value}>{t(`assessment.scope.${value}`)}</option>)}</select></label>
+      <label>{t("assessment.correctness")}<select value={policy.correctness} onChange={event=>onUpdate({assessment:{...policy,correctness:event.target.value as typeof policy.correctness}})}>{["legacy","discovery"].map(value=><option key={value} value={value}>{t(`assessment.correctness.${value}`)}</option>)}</select></label>
+      <label>{t("assessment.occasion")}<select value={policy.occasion} onChange={event=>onUpdate({assessment:{...policy,occasion:event.target.value as typeof policy.occasion}})}>{["initial","fresh","delayed"].map(value=><option key={value} value={value}>{t(`assessment.occasion.${value}`)}</option>)}</select></label>
+      <label>{t("assessment.collisions")}<input type="number" min={0} max={1000} value={policy.maxCollisions??""} onChange={event=>onUpdate({assessment:{...policy,maxCollisions:event.target.value===""?null:Number(event.target.value)}})}/></label>
+    </fieldset><h3>Grid and layouts</h3>
     <p>Edit the default grid. Add variants when learners should receive an unpredictable layout.</p>
     <GridPainter label="Default layout" world={challenge.world} onChange={(world) => onUpdate({ world })}/>
     {challenge.layouts.map((layout, index) => <div className="admin-layout-variant" key={layout.slug}>

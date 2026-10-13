@@ -133,3 +133,28 @@ assert(layoutExport.rounds[0]?.layoutId === "two-steps-before-turn" && layoutExp
 layoutService.onModuleDestroy();
 
 console.log(`live session domain: ${passed} tests passed`);
+
+// A teacher records observations; student payloads cannot assign them.
+let evidenceToken=0;
+const evidenceService=new LiveSessionService({codeGenerator:()=>"444444",tokenGenerator:()=>`evidence-${++evidenceToken}`,challenges:allChallenges,sweepIntervalMs:0,logger:()=>{}});
+const evidenceSession=evidenceService.createSession();
+const learner=evidenceService.joinParticipant("444444","Learner");
+evidenceService.selectCampaign(evidenceSession.teacherToken,"foundations-pilot-v1");
+evidenceService.selectChallenge(evidenceSession.teacherToken,"pilot-v1-predict-turn");
+const predictionRound=evidenceService.startChallenge(evidenceSession.teacherToken);
+const fixed=allChallenges.find(c=>c.id==="pilot-v1-predict-turn")!.starter;
+expectCode("INVALID_SUBMISSION",()=>evidenceService.submitSolution(learner.participantToken,predictionRound.roundId!,"pilot-v1-predict-turn",program([]),{assistance:"none",replayed:false}));
+evidenceService.submitSolution(learner.participantToken,predictionRound.roundId!,"pilot-v1-predict-turn",fixed,{assistance:"none",replayed:false,prediction:{x:2,y:1,direction:"east"},explanation:"Private explanation",observation:"independent"});
+assert(evidenceService.getStudentSnapshot(learner.participantToken).submissions.length===0,"student cannot read class evidence");
+evidenceService.closeSubmissions(evidenceSession.teacherToken);
+assert(evidenceService.getTeacherSnapshot(evidenceSession.teacherToken).submissions[0]?.evidence?.observation==="missing","student observation claim is ignored");
+expectCode("UNABLE_TO_RECONNECT",()=>evidenceService.observe(learner.participantToken,predictionRound.roundId!,learner.participantId,"independent"));
+expectCode("ROUND_MISMATCH",()=>evidenceService.observe(evidenceSession.teacherToken,"old-round",learner.participantId,"independent"));
+evidenceService.observe(evidenceSession.teacherToken,predictionRound.roundId!,learner.participantId,"independent");
+const evidenceExport=evidenceService.exportSession(evidenceSession.teacherToken);
+assert(evidenceExport.rounds[0]?.participants[0]?.evidence?.observation==="independent","explicit teacher observation is exported");
+assert(!JSON.stringify(evidenceExport).includes("Private explanation")&&!JSON.stringify(evidenceExport).includes("Learner"),"export omits free text and names");
+evidenceService.selectSubmission(evidenceSession.teacherToken,learner.participantId);
+assert(evidenceService.getTeacherSnapshot(evidenceSession.teacherToken).selectedSubmission?.learnerEvidence?.explanation==="Private explanation","teacher can inspect the selected explanation in the ephemeral session");
+evidenceService.onModuleDestroy();
+console.log("live assessment authorization and evidence tests passed");

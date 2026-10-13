@@ -1,8 +1,9 @@
 import { FloatingNavigation } from "../navigation/FloatingNavigation.js";
+import type { ReactNode } from "react";
 
-export function StudentHeader({ section, onBack, backLabel }: { readonly section: string; readonly onBack: () => void; readonly backLabel: string }) {
+export function StudentHeader({ section, onBack, backLabel, controls }: { readonly section: string; readonly onBack: () => void; readonly backLabel: string; readonly controls?: ReactNode }) {
   void section;
-  return <FloatingNavigation onBack={onBack} backLabel={backLabel}/>;
+  return <FloatingNavigation onBack={onBack} backLabel={backLabel} controls={controls}/>;
 }
 
 export function ProgressIndicator({ value, total, label }: { readonly value: number; readonly total: number; readonly label: string }) {

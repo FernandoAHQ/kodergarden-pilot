@@ -1,7 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import type { GridWorldDefinition } from "@kodergarden/engine";
 import type { Program } from "@kodergarden/language";
-import type { CampaignKind, EditorTool } from "@kodergarden/shared";
+import type { AssessmentPolicy, PracticeChallengeDefinition, CampaignKind, EditorTool } from "@kodergarden/shared";
 
 @Entity("campaigns")
 export class CampaignEntity {
@@ -46,7 +46,8 @@ export class ChallengeEntity {
   @ManyToOne(() => CampaignRevisionEntity, (revision) => revision.challenges, { onDelete: "CASCADE" }) @JoinColumn({ name: "revision_id" }) revision!: CampaignRevisionEntity;
   @Column({ type: "varchar", length: 100 }) slug!: string;
   @Column({ name: "display_order", type: "integer" }) order!: number;
-  @Column({ type: "varchar", length: 20, default: "build" }) type!: "build";
+  @Column({ type: "varchar", length: 20, default: "build" }) type!: PracticeChallengeDefinition["type"];
+  @Column({ type: "jsonb", nullable: true }) assessment!: AssessmentPolicy | null;
   @Column({ type: "jsonb" }) world!: GridWorldDefinition;
   @Column({ type: "jsonb" }) allowed!: readonly EditorTool[];
   @Column({ type: "jsonb" }) starter!: Program;

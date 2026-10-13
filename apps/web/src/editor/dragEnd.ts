@@ -1,6 +1,6 @@
 import type { EditorLocation, EditorStatement } from "./model.js";
 
-export type PaletteKind = "moveForward" | "turn" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
+export type PaletteKind = "moveForward" | "turn" | "collect" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
 
 export interface DragEndItem {
   readonly id: string | number;
@@ -17,7 +17,7 @@ export type DragEndRoute =
   | { readonly action: "move"; readonly statementId: string; readonly destination: EditorLocation; readonly destinationSource: "metadata" | "id" }
   | { readonly action: "reject"; readonly stage: "active" | "destination"; readonly reason: string };
 
-const paletteKinds: readonly PaletteKind[] = ["moveForward", "turn", "repeat", "if", "ifElse", "while", "repeatUntilGoal"];
+const paletteKinds: readonly PaletteKind[] = ["moveForward", "turn", "collect", "repeat", "if", "ifElse", "while", "repeatUntilGoal"];
 let editorIdSequence = 0;
 
 export function createEditorId(fillRandom?: (values: Uint32Array) => void, now: () => number = Date.now): string {
@@ -32,6 +32,8 @@ export const createPaletteStatement = (kind: PaletteKind, makeId: () => string):
   ? { id: makeId(), type: "moveForward" }
   : kind === "turn"
     ? { id: makeId(), type: "turn", direction: "right" }
+    : kind === "collect"
+      ? { id: makeId(), type: "collect" }
     : kind === "if"
       ? { id: makeId(), type: "if", condition: "ahead", body: [] }
       : kind === "ifElse"

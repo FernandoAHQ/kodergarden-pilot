@@ -80,3 +80,32 @@ for(const invalid of [
 ]){let rejected=false;try{new GridRuntime(invalid);}catch{rejected=true;}assert(rejected,"invalid shifting hedge placement is rejected");}
 
 console.log("engine: 38 tests passed");
+
+// Safety limits are failures even when the robot happens to be at the goal.
+const goalStart: GridWorldDefinition = {width:3,height:3,blocked:[],robot:{x:1,y:1,direction:"east"},goal:{x:1,y:1}};
+const emptyWhile = executeProgram({version:3,statements:[{type:"while",condition:{type:"path",direction:"ahead"},body:[]}]},new GridRuntime(goalStart),{maxSteps:10,maxControlIterations:2});
+assert(emptyWhile.goalReached && !emptyWhile.succeeded && emptyWhile.termination === "limit","goal and normal termination are independent");
+const nestedEmpty = program([{type:"repeat",count:100,body:[{type:"repeat",count:100,body:[]}]}]);
+const fueled = executeProgram(nestedEmpty,new GridRuntime(goalStart),{maxSteps:10,maxOperations:12});
+assert(fueled.stoppedByLimit && fueled.operations === 12 && fueled.executionSteps === 0,"empty fixed repeats consume fuel");
+const capped = executeProgram(nestedEmpty,new GridRuntime(goalStart),{maxSteps:10,maxEvents:8});
+assert(capped.events.length === 8 && capped.events.at(-1)?.type === "executionLimitReached","trace memory is bounded and ends with one safety event");
+const choice = {version:3 as const,statements:[{type:"ifElse" as const,condition:{type:"path" as const,direction:"ahead" as const},thenBody:[{type:"turnLeft" as const}],elseBody:[{type:"turnRight" as const}]}]};
+const yes = executeProgram(choice,new GridRuntime(goalStart));
+const no = executeProgram(choice,new GridRuntime({...goalStart,blocked:[{x:2,y:1}]}));
+assert(yes.events.some(e=>e.type==="runtimeEffect"&&JSON.stringify(e.path)==='[0,"then",0]'),"Then has an unambiguous address");
+assert(no.events.some(e=>e.type==="runtimeEffect"&&JSON.stringify(e.path)==='[0,"else",0]'),"Else has an unambiguous address");
+const twoHedges = executeProgram(program([]),new GridRuntime({width:5,height:3,blocked:[],robot:{x:0,y:0,direction:"east"},goal:{x:4,y:0},shiftingHedges:[{id:"a",from:{x:1,y:1},to:{x:1,y:2}},{id:"b",from:{x:3,y:1},to:{x:3,y:2}}]}));
+const shifts = twoHedges.events.filter(e=>e.type==="runtimeEffect"&&e.effect.type==="worldChanged");
+assert(shifts[0]?.type === "runtimeEffect" && shifts[0].state.shiftingHedges?.[1]?.position.y === 1,"the first hedge frame does not prematurely move the second hedge");
+const itemWorld:GridWorldDefinition={width:5,height:1,blocked:[],robot:{x:0,y:0,direction:"east"},goal:{x:4,y:0},items:[{id:"packet-0",position:{x:0,y:0}},{id:"packet-2",position:{x:2,y:0}}]};
+const collectProgram={version:4 as const,statements:[{type:"repeat" as const,count:4,body:[{type:"if" as const,condition:{type:"itemHere" as const},body:[{type:"collect" as const}]},{type:"moveForward" as const}]}]};
+const collection=executeProgram(collectProgram,new GridRuntime(itemWorld));
+assert(collection.succeeded&&collection.finalState.destinationReached&&collection.finalState.collectedItems===2&&collection.finalState.items?.length===0,"item sensor and Collect satisfy both objectives");
+assert(collection.events.filter(event=>event.type==="conditionEvaluated"&&event.condition.type==="itemHere").length===4,"item sensing is traced without consuming packets");
+const missed=executeProgram({version:4,statements:[{type:"repeat",count:4,body:[{type:"moveForward"}]}]},new GridRuntime(itemWorld));
+assert(missed.finalState.destinationReached&&!missed.succeeded&&missed.finalState.collectedItems===0,"reaching the destination does not complete an item objective");
+const invalidCollect=executeProgram({version:4,statements:[{type:"collect"}]},new GridRuntime({...itemWorld,items:[]}));
+assert(invalidCollect.finalState.invalidCollections===1&&invalidCollect.events.some(event=>event.type==="runtimeEffect"&&event.effect.type==="collectFailed"),"empty collection is explicit and deterministic");
+for(const invalid of [{...itemWorld,items:[{id:"same",position:{x:0,y:0}},{id:"same",position:{x:1,y:0}}]},{...itemWorld,items:[{id:"a",position:{x:1,y:0}},{id:"b",position:{x:1,y:0}}]}]){let rejected=false;try{new GridRuntime(invalid);}catch{rejected=true;}assert(rejected,"invalid item definitions are rejected");}
+console.log("engine: additional safety, branch and snapshot regression checks passed");

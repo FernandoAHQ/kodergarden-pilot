@@ -31,4 +31,9 @@ assert(!validateProgram({ ...version3, version: 2 }).ok, "rejects version 3 cont
 assert(!validateProgram({ version: 3, statements: [{ type: "if", condition: { type: "path", direction: "behind" }, body: [] }] }).ok, "rejects unsupported path directions");
 assert(countBlocks(version3 as Parameters<typeof countBlocks>[0]) === 4, "counts While and Repeat Until bodies");
 
-console.log("language: 11 tests passed");
+const version4 = { version: 4, statements: [{ type: "if", condition: { type: "itemHere" }, body: [{ type: "collect" }] }] };
+assert(validateProgram(version4).ok, "accepts the item sensor and Collect in version 4");
+assert(!validateProgram({ ...version4, version: 3 }).ok, "rejects item mechanics in older programs");
+assert(countBlocks(version4 as Parameters<typeof countBlocks>[0]) === 2, "counts Collect as an authored block");
+
+console.log("language: 14 tests passed");

@@ -1,3 +1,4 @@
+import type { AssessmentEvidence, LearnerEvidence, Observation } from "./assessment.js";
 import type { Program } from "@kodergarden/language";
 
 export type LivePhase = "LOBBY" | "CHALLENGE_PREVIEW" | "PROGRAMMING" | "REVIEW" | "PLAYBACK" | "ENDED";
@@ -5,8 +6,8 @@ export type LiveErrorCode = "SESSION_NOT_FOUND" | "INVALID_CODE" | "SESSION_ENDE
 
 export interface LiveError { readonly code: LiveErrorCode; readonly message: string }
 export interface ParticipantSummary { readonly id: string; readonly name: string; readonly connected: boolean; readonly hasSubmitted: boolean }
-export interface SubmissionSummary { readonly participantId: string; readonly correct: boolean; readonly blockCount: number; readonly executionSteps: number; readonly submittedAt: number }
-export interface SelectedSubmission { readonly participantId: string; readonly participantName: string; readonly program: Program; readonly correct: boolean; readonly blockCount: number; readonly executionSteps: number }
+export interface SubmissionSummary { readonly evidence?: AssessmentEvidence; readonly participantId: string; readonly correct: boolean; readonly blockCount: number; readonly executionSteps: number; readonly submittedAt: number }
+export interface SelectedSubmission { readonly evidence?: AssessmentEvidence; readonly learnerEvidence?: LearnerEvidence; readonly participantId: string; readonly participantName: string; readonly program: Program; readonly correct: boolean; readonly blockCount: number; readonly executionSteps: number }
 export interface LiveSessionSnapshot {
   readonly sessionId: string;
   readonly code: string;
@@ -23,6 +24,7 @@ export interface LiveSessionSnapshot {
   readonly selectedSubmission: SelectedSubmission | null;
   /** Present only in that participant's role-scoped snapshot. Never contains a classmate's program. */
   readonly ownSubmission: Program | null;
+  readonly ownEvidence?: LearnerEvidence | null;
   readonly teacherConnected: boolean;
 }
 
@@ -30,13 +32,14 @@ export type LiveResult<T> = { readonly ok: true; readonly value: T } | { readonl
 export interface CreateSessionResult { readonly teacherToken: string; readonly snapshot: LiveSessionSnapshot }
 export interface JoinSessionResult { readonly participantToken: string; readonly participantId: string; readonly snapshot: LiveSessionSnapshot }
 export interface SessionCredentials { readonly token: string }
-export interface SubmitSolutionPayload { readonly participantToken: string; readonly roundId: string; readonly challengeId: string; readonly program: Program }
-export interface PilotParticipantResult { readonly participantNumber: number; readonly submitted: boolean; readonly submissionAttempts: number; readonly resubmissions: number; readonly correct: boolean | null; readonly blockCount: number | null; readonly executionSteps: number | null; readonly submittedAt: number | null }
+export interface SubmitSolutionPayload { readonly evidence?: LearnerEvidence; readonly participantToken: string; readonly roundId: string; readonly challengeId: string; readonly program: Program }
+export interface PilotParticipantResult { readonly evidence?: AssessmentEvidence | null; readonly participantNumber: number; readonly submitted: boolean; readonly submissionAttempts: number; readonly resubmissions: number; readonly correct: boolean | null; readonly blockCount: number | null; readonly executionSteps: number | null; readonly submittedAt: number | null }
 export interface PilotRoundSummary { readonly roundNumber: number; readonly campaignId: string; readonly campaignRevisionId: string | null; readonly challengeId: string; readonly layoutId: string | null; readonly startedAt: number; readonly closedAt: number | null; readonly participants: readonly PilotParticipantResult[] }
 /** De-identified pilot evidence. Excludes names, internal IDs, join codes, capability tokens, and program ASTs. */
 export interface PilotSessionExport { readonly version: 1; readonly startedAt: number; readonly exportedAt: number; readonly phase: LivePhase; readonly rounds: readonly PilotRoundSummary[] }
 
 export interface ClientToServerEvents {
+  "teacher:observe": (payload: SessionCredentials & { readonly roundId: string; readonly participantId: string; readonly observation: Observation }, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
   "teacher:create": (payload: Record<string, never>, ack: (result: LiveResult<CreateSessionResult>) => void) => void;
   "teacher:reconnect": (credentials: SessionCredentials, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;
   "teacher:selectCampaign": (payload: SessionCredentials & { readonly campaignId: string }, ack: (result: LiveResult<LiveSessionSnapshot>) => void) => void;

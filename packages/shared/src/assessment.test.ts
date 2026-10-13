@@ -1,0 +1,36 @@
+import { program, programV3 } from "@kodergarden/language";
+import { assessAttempt, evaluateChallengeProgram, evaluateLiveProgram, evaluatePracticeProgram, parseLearnerEvidence, pilotCampaign, practiceChallenges, challengeWorlds } from "./index.js";
+let checks=0;
+const assert=(value:unknown,message:string)=>{if(!value)throw new Error(message);checks++;};
+const input={assistance:"none" as const,replayed:false};
+for(const challenge of pilotCampaign.challenges) {
+  if(challenge.type==="predict")continue;
+  const result=evaluateChallengeProgram(challenge,challenge.referenceSolution!);
+  assert(result.complete,`${challenge.id} reference solves every required case`);
+  assert(challenge.maxBlocks===undefined,`${challenge.id} has no discovery cap`);
+  assert(result.scope===challenge.assessment?.scope,`${challenge.id} reports authored scope`);
+  for(const layout of challengeWorlds(challenge))assert(evaluateLiveProgram(challenge,challenge.referenceSolution!,0,layout.world).complete===evaluatePracticeProgram(challenge,challenge.referenceSolution!).complete,"Live and Practice use the same policy");
+}
+const get=(id:string)=>pilotCampaign.challenges.find(c=>c.id===`pilot-v1-${id}`)!;
+assert(evaluateChallengeProgram(get("repeat-01"),program(Array.from({length:6},()=>({type:"moveForward" as const})))).complete,"expanded correct sequence is accepted independently of Repeat efficiency");
+assert(!evaluateChallengeProgram(get("condition-01"),program([{type:"moveForward"}])).complete,"unguarded move fails the closed If case");
+assert(evaluateChallengeProgram(get("while-hallway"),get("while-hallway").referenceSolution!).layouts[0]?.executionSteps===0,"While teaches a zero-iteration case");
+assert(!evaluateChallengeProgram(get("repeat-until-battery"),programV3([{type:"while",condition:{type:"path",direction:"ahead"},body:[{type:"moveForward"}]}])).complete,"stopping at the wall fails a battery-before-wall family");
+const prediction=get("predict-turn");
+const predicted=assessAttempt(prediction,prediction.starter,{...input,prediction:{x:2,y:1,direction:"east"}});
+assert(predicted.complete&&predicted.evidence.prediction==="correct"&&predicted.evidence.observation==="missing","correct prediction never automatically becomes independent evidence");
+assert(!assessAttempt(prediction,prediction.starter,input).complete,"missing prediction cannot pass");
+const debug=get("debug-until");
+assert(!assessAttempt(debug,debug.referenceSolution!,input).complete,"a repair requires an explanation");
+assert(assessAttempt(debug,debug.referenceSolution!,{...input,explanation:"The second move skips the battery before the next check."}).complete,"repair plus explanation is recorded");
+assert(parseLearnerEvidence({assistance:"none",replayed:false,observation:"independent"})?.assistance==="none","untrusted teacher-observation fields are discarded");
+assert(parseLearnerEvidence({...input,prediction:{x:NaN,y:0,direction:"north"}})===null,"invalid prediction payload is rejected");
+assert(parseLearnerEvidence({...input,explanation:"x".repeat(501)})===null,"explanations have a bounded payload");
+const family=practiceChallenges.find(c=>c.id==="condition-repeat")!;
+const patrol=practiceChallenges.find(c=>c.id==="final")!;
+assert(family.requiredTools?.includes("while")&&!JSON.stringify(family.referenceSolution).includes('"type":"repeat"'),"changing hallway uses a condition-controlled loop instead of padded fixed Repeat");
+assert(patrol.requiredTools?.includes("while")&&!JSON.stringify(patrol.referenceSolution).includes('"type":"repeat"'),"variable L-shaped gardens use condition-controlled sections instead of padded fixed Repeat");
+const medium=program(Array.from({length:4},()=>({type:"moveForward" as const})));
+assert(!evaluateLiveProgram(family,medium,3,family.worldVariants![0]!.world).complete,"visible-case success is not case-family success");
+assert(evaluateChallengeProgram({...family,assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"initial"}},medium,family.worldVariants![0]!.world).complete,"an explicitly active-case activity checks only that world");
+console.log(`assessment: ${checks} checks passed`);

@@ -41,7 +41,7 @@ export class CatalogService {
 
   private async publishedRows() {
     const campaigns = await this.campaigns.find({ order: { slug: "ASC" } });
-    const rows = await Promise.all(campaigns.filter((campaign) => campaign.publishedRevisionId).map(async (campaign) => {
+    const rows = await Promise.all(campaigns.filter((campaign) => campaign.publishedRevisionId && (campaign.slug !== "foundations-pilot-v1" || process.env.ENABLE_CURRICULUM_PILOT === "true")).map(async (campaign) => {
       const revision = await this.revisions.findOne({ where: { id: campaign.publishedRevisionId! }, relations: { translations: true, challenges: { translations: true, layouts: true } } });
       if (!revision || revision.status !== "published") throw new Error(`Published revision missing for ${campaign.slug}`);
       return { campaign, revision };
@@ -58,9 +58,9 @@ export class CatalogService {
       const starter = validateProgram(challenge.starter); if (!starter.ok) throw new Error(`Invalid starter program for ${challenge.slug}`);
       const reference = challenge.referenceSolution ? validateProgram(challenge.referenceSolution) : null; if (reference && !reference.ok) throw new Error(`Invalid reference solution for ${challenge.slug}`);
       const requiredTool = challenge.unlockKey === "turn" ? "turn" : challenge.unlockKey === "repeat" ? "repeat" : challenge.unlockKey === "if" ? "if" : challenge.unlockKey === "ifElse" ? "ifElse" : challenge.unlockKey === "while" ? "while" : challenge.unlockKey === "repeatUntil" ? "repeatUntilGoal" : null;
-      return { id: challenge.slug, campaignId: campaign.slug, order: challenge.order, type: "build", titleKey: copy.title, instructionKey: copy.instruction, conceptKey: copy.concept, world: challenge.world, allowed: challenge.allowed, starter: starter.program,
+      return { id: challenge.slug, campaignId: campaign.slug, order: challenge.order, type: challenge.type, ...(challenge.assessment ? {assessment:challenge.assessment} : {}), titleKey: copy.title, instructionKey: copy.instruction, conceptKey: copy.concept, world: challenge.world, allowed: challenge.allowed, starter: starter.program,
         ...(challenge.layouts.length ? { worldVariants: [...challenge.layouts].sort((a,b)=>a.order-b.order).map((layout)=>({ id: layout.slug, world: layout.world })) } : {}),
-        ...(challenge.maxBlocks === null ? {} : { maxBlocks: challenge.maxBlocks }), ...(campaign.slug === "foundations" ? { maxCollisions: 0 } : {}), ...(challenge.parBlocks === null ? {} : { parBlocks: challenge.parBlocks }), ...(challenge.parSteps === null ? {} : { parSteps: challenge.parSteps }), ...(challenge.unlockKey === null ? {} : { unlockKey: challenge.unlockKey }), ...(requiredTool ? { requiredTools: [requiredTool] } : {}), ...(reference?.ok ? { referenceSolution: reference.program } : {}) };
+        ...(challenge.maxBlocks === null ? {} : { maxBlocks: challenge.maxBlocks }), ...(campaign.slug === "foundations" ? { maxCollisions: 0 } : {}), ...(challenge.parBlocks === null ? {} : { parBlocks: challenge.parBlocks }), ...(challenge.parSteps === null ? {} : { parSteps: challenge.parSteps }), ...(challenge.unlockKey === null ? {} : { unlockKey: challenge.unlockKey }), ...(!challenge.assessment && requiredTool ? { requiredTools: [requiredTool] } : {}), ...(reference?.ok ? { referenceSolution: reference.program } : {}) };
     });
     return { id: campaign.slug, revisionId: revision.id, order: revision.order, kind: revision.kind, titleKey: translation.title, descriptionKey: translation.description, challenges };
   }

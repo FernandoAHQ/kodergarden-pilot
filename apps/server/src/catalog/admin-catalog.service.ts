@@ -1,3 +1,4 @@
+import { evaluateChallengeProgram, statementAllowed, validAssessmentPolicy, type PracticeChallengeDefinition } from "@kodergarden/shared";
 import {
   BadRequestException,
   ConflictException,
@@ -34,6 +35,7 @@ const requiredLocales = ["en", "es"] as const;
 const editorTools: readonly EditorTool[] = [
   "moveForward",
   "turn",
+  "collect",
   "repeat",
   "if",
   "ifElse",
@@ -153,7 +155,7 @@ export class AdminCatalogService {
                 revisionId: draft.id,
                 slug: sourceChallenge.slug,
                 order: sourceChallenge.order,
-                type: "build",
+                type: sourceChallenge.type, assessment: sourceChallenge.assessment,
                 world: sourceChallenge.world,
                 allowed: sourceChallenge.allowed,
                 starter: sourceChallenge.starter,
@@ -254,6 +256,7 @@ export class AdminCatalogService {
             world: item.world,
             starter: item.starter,
             referenceSolution: item.referenceSolution,
+            type: item.type ?? "build", assessment: item.assessment ?? null,
             maxBlocks: item.maxBlocks,
             parBlocks: item.parBlocks,
             parSteps: item.parSteps,
@@ -338,7 +341,7 @@ export class AdminCatalogService {
           revisionId: id,
           slug: newSlug,
           order: Math.max(...revision.challenges.map((item) => item.order)) + 1,
-          type: "build",
+          type: source.type, assessment: source.assessment,
           world: source.world,
           allowed: source.allowed,
           starter: source.starter,
@@ -480,7 +483,7 @@ export class AdminCatalogService {
       const draft = await manager.getRepository(CampaignRevisionEntity).save(manager.getRepository(CampaignRevisionEntity).create({ campaignId: campaign.id, version: Number(versionRow?.max ?? 0) + 1, status: "draft", kind: source.kind, order: source.order, publishedAt: null }));
       for (const copy of source.translations) await manager.getRepository(CampaignTranslationEntity).save(manager.getRepository(CampaignTranslationEntity).create({ revisionId: draft.id, locale: copy.locale, title: copy.title, description: copy.description }));
       for (const sourceChallenge of [...source.challenges].sort((a, b) => a.order - b.order)) {
-        const challenge = await manager.getRepository(ChallengeEntity).save(manager.getRepository(ChallengeEntity).create({ revisionId: draft.id, slug: sourceChallenge.slug, order: sourceChallenge.order, type: "build", world: sourceChallenge.world, allowed: sourceChallenge.allowed, starter: sourceChallenge.starter, maxBlocks: sourceChallenge.maxBlocks, parBlocks: sourceChallenge.parBlocks, parSteps: sourceChallenge.parSteps, unlockKey: sourceChallenge.unlockKey, referenceSolution: sourceChallenge.referenceSolution }));
+        const challenge = await manager.getRepository(ChallengeEntity).save(manager.getRepository(ChallengeEntity).create({ revisionId: draft.id, slug: sourceChallenge.slug, order: sourceChallenge.order, type: sourceChallenge.type, assessment: sourceChallenge.assessment, world: sourceChallenge.world, allowed: sourceChallenge.allowed, starter: sourceChallenge.starter, maxBlocks: sourceChallenge.maxBlocks, parBlocks: sourceChallenge.parBlocks, parSteps: sourceChallenge.parSteps, unlockKey: sourceChallenge.unlockKey, referenceSolution: sourceChallenge.referenceSolution }));
         for (const copy of sourceChallenge.translations) await manager.getRepository(ChallengeTranslationEntity).save(manager.getRepository(ChallengeTranslationEntity).create({ challengeId: challenge.id, locale: copy.locale, title: copy.title, instruction: copy.instruction, concept: copy.concept }));
         for (const layout of sourceChallenge.layouts) await manager.getRepository(ChallengeLayoutEntity).save(manager.getRepository(ChallengeLayoutEntity).create({ challengeId: challenge.id, slug: layout.slug, order: layout.order, world: layout.world }));
       }
@@ -502,6 +505,7 @@ export class AdminCatalogService {
       .findOne({
         where: { id },
         relations: {
+          campaign: true,
           translations: true,
           challenges: { translations: true, layouts: true },
         },
@@ -550,6 +554,7 @@ export class AdminCatalogService {
             order: challenge.order,
             allowed: challenge.allowed,
             maxBlocks: challenge.maxBlocks,
+            type: challenge.type, assessment: challenge.assessment,
             parBlocks: challenge.parBlocks,
             parSteps: challenge.parSteps,
             world: challenge.world,
@@ -612,6 +617,10 @@ export class AdminCatalogService {
     const limit = (value: unknown, label: string) =>
       value === null ? null : positive(value, label);
     const challenges = input.challenges.map((item, index) => {
+      if (item.type !== undefined && !["build","predict","debug","family"].includes(item.type)) throw new BadRequestException("Invalid activity type");
+      if (item.assessment != null && !validAssessmentPolicy(item.assessment)) throw new BadRequestException("Invalid assessment policy");
+      if (item.type === "predict" && item.assessment?.scope !== "active-case") throw new BadRequestException("Predictions need active-case scope");
+      if (item.type === "family" && item.assessment?.scope !== "case-family") throw new BadRequestException("Family activities need case-family scope");
       if (
         !Array.isArray(item.allowed) ||
         item.allowed.length === 0 ||
@@ -629,7 +638,7 @@ export class AdminCatalogService {
         throw new BadRequestException(
           `${item.slug} starter program uses a block that is not allowed`,
         );
-      if (item.maxBlocks !== null && countBlocks(starter.program) > item.maxBlocks)
+      if (item.assessment?.correctness !== "discovery" && item.maxBlocks !== null && countBlocks(starter.program) > item.maxBlocks)
         throw new BadRequestException(
           `${item.slug} starter program exceeds its maximum block count`,
         );
@@ -671,6 +680,7 @@ export class AdminCatalogService {
         slug: item.slug,
         order: orders[index]!,
         allowed: [...new Set(item.allowed as readonly EditorTool[])],
+        type: item.type ?? "build", assessment: item.assessment ?? null,
         maxBlocks: limit(item.maxBlocks, `${item.slug} max blocks`),
         parBlocks: limit(item.parBlocks, `${item.slug} par blocks`),
         parSteps: limit(item.parSteps, `${item.slug} par steps`),
@@ -740,6 +750,7 @@ export class AdminCatalogService {
       if (statement.type === "moveForward") tools.push("moveForward");
       else if (statement.type === "turnLeft" || statement.type === "turnRight")
         tools.push("turn");
+      else if (statement.type === "collect") tools.push("collect");
       else if (statement.type === "repeat") {
         tools.push("repeat", ...this.programTools(statement.body));
       } else if (statement.type === "if") {
@@ -761,8 +772,19 @@ export class AdminCatalogService {
   private validateLoadedRevision(revision: CampaignRevisionEntity): AdminValidationResponseV1 {
     const issues: AdminValidationIssue[] = [];
     for (const challenge of revision.challenges) {
-      const solution = challenge.referenceSolution;
-      if (!solution) continue;
+      if (challenge.assessment !== null && !validAssessmentPolicy(challenge.assessment)) { issues.push({challengeSlug:challenge.slug,code:"assessment.invalid",message:"Invalid assessment policy"}); continue; }
+      if (!["build","predict","debug","family"].includes(challenge.type) || challenge.type === "predict" && challenge.assessment?.scope !== "active-case" || challenge.type === "family" && challenge.assessment?.scope !== "case-family") { issues.push({challengeSlug:challenge.slug,code:"activity.invalid",message:"Activity and evaluation scope do not match"}); continue; }
+      const solution = challenge.type === "predict" ? challenge.starter : challenge.referenceSolution;
+      if (!solution) { issues.push({challengeSlug:challenge.slug,code:"reference.missing",message:"Provide a reference solution before publishing"}); continue; }
+      if (challenge.type === "predict") {
+        const valid = validateProgram(challenge.starter);
+        if (!valid.ok || valid.program.statements.some(statement=>!statementAllowed(statement,challenge.allowed))) {issues.push({challengeSlug:challenge.slug,code:"prediction.invalid",message:"Prediction starter is invalid or uses disallowed blocks"});continue;}
+        for (const world of [challenge.world,...challenge.layouts.map(layout=>layout.world)]) {
+          try {const result=executeProgram(valid.program,new GridRuntime(world));if(result.stoppedByLimit)issues.push({challengeSlug:challenge.slug,code:"prediction.limit",message:"Prediction program must terminate normally in every authored case"});}
+          catch {issues.push({challengeSlug:challenge.slug,code:"prediction.world",message:"Prediction world is invalid"});}
+        }
+        continue;
+      }
       const validated = validateProgram(solution);
       if (!validated.ok) {
         issues.push({ challengeSlug: challenge.slug, code: "reference.invalid", message: validated.errors.join(", ") });
@@ -771,28 +793,19 @@ export class AdminCatalogService {
       const disallowed = this.programTools(validated.program.statements).find((tool) => !challenge.allowed.includes(tool));
       if (disallowed)
         issues.push({ challengeSlug: challenge.slug, code: "reference.disallowed", message: `Reference solution uses disallowed block ${disallowed}` });
-      const requiredTool = challenge.unlockKey === "turn" ? "turn" : challenge.unlockKey === "repeat" ? "repeat" : challenge.unlockKey === "if" ? "if" : challenge.unlockKey === "ifElse" ? "ifElse" : challenge.unlockKey === "while" ? "while" : challenge.unlockKey === "repeatUntil" ? "repeatUntilGoal" : null;
-      if (requiredTool && !this.programTools(validated.program.statements).includes(requiredTool))
-        issues.push({ challengeSlug: challenge.slug, code: "reference.requiredTool", message: `Reference solution must use ${requiredTool}` });
-      const blocks = countBlocks(validated.program);
-      if (challenge.maxBlocks !== null && blocks > challenge.maxBlocks)
-        issues.push({ challengeSlug: challenge.slug, code: "reference.maxBlocks", message: `Reference solution uses ${blocks} blocks; maximum is ${challenge.maxBlocks}` });
-      if (challenge.parBlocks !== null && blocks > challenge.parBlocks)
-        issues.push({ challengeSlug: challenge.slug, code: "reference.parBlocks", message: `Reference solution misses the ${challenge.parBlocks}-block target` });
-      const worlds = [{ slug: "default", world: challenge.world }, ...challenge.layouts.map((layout) => ({ slug: layout.slug, world: layout.world }))];
-      for (const { slug, world } of worlds) {
-        try {
-          const result = executeProgram(validated.program, new GridRuntime(world));
-          if (!result.succeeded)
-            issues.push({ challengeSlug: challenge.slug, code: "reference.unsolved", message: `Reference solution does not solve layout ${slug}` });
-          if (revision.kind === "guided" && result.events.some((event) => event.type === "runtimeEffect" && event.effect.type === "blocked"))
-            issues.push({ challengeSlug: challenge.slug, code: "reference.collision", message: `Reference solution collides with a hedge on ${slug}` });
-          if (challenge.parSteps !== null && result.executionSteps > challenge.parSteps)
-            issues.push({ challengeSlug: challenge.slug, code: "reference.parSteps", message: `Reference solution takes ${result.executionSteps} steps on ${slug}; target is ${challenge.parSteps}` });
-        } catch (reason) {
-          issues.push({ challengeSlug: challenge.slug, code: "layout.invalid", message: `${slug}: ${reason instanceof Error ? reason.message : "invalid layout"}` });
-        }
-      }
+      const requiredTool = challenge.unlockKey === "repeatUntil" ? "repeatUntilGoal" : challenge.unlockKey;
+      const definition: PracticeChallengeDefinition = { id:challenge.slug,campaignId:revision.campaign?.slug ?? "",order:challenge.order,type:challenge.type,titleKey:"",instructionKey:"",conceptKey:"",world:challenge.world,allowed:challenge.allowed,starter:challenge.starter,
+        worldVariants:challenge.layouts.map(layout=>({id:layout.slug,world:layout.world})),
+        ...(challenge.assessment ? {assessment:challenge.assessment} : {}),
+        ...(challenge.maxBlocks === null ? {} : {maxBlocks:challenge.maxBlocks}),
+        ...(revision.campaign?.slug === "foundations" ? {maxCollisions:0} : {}),
+        ...(!challenge.assessment && requiredTool && editorTools.includes(requiredTool as EditorTool) ? {requiredTools:[requiredTool as EditorTool]} : {}) };
+      try {
+        // Publishing verifies all authored cases even for an active-case classroom task.
+        const result = evaluateChallengeProgram(definition, validated.program, definition.world, "case-family");
+        if(challenge.type === "debug" && evaluateChallengeProgram(definition,challenge.starter,definition.world,"case-family").complete)issues.push({challengeSlug:challenge.slug,code:"debug.alreadyCorrect",message:"A repair task needs a starter that fails at least one required case"});
+        if (!result.complete) issues.push({challengeSlug:challenge.slug,code:"reference.unsolved",message:`Reference fails shared evaluation (${result.firstFailingLayoutId ?? "constraints"})`});
+      } catch (reason) { issues.push({challengeSlug:challenge.slug,code:"layout.invalid",message:reason instanceof Error ? reason.message : "Invalid layout"}); }
     }
     return { version: 1, valid: issues.length === 0, issues };
   }

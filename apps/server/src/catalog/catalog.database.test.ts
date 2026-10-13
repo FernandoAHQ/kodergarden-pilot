@@ -1,3 +1,4 @@
+import { AssessmentEvidence1791400000000 } from "../migrations/1791400000000-AssessmentEvidence.js";
 import { DataSource } from "typeorm";
 import { catalogEntities, CampaignEntity, CampaignRevisionEntity } from "./catalog.entities.js";
 import { InitialCatalogSchema1791394000000 } from "../migrations/1791394000000-InitialCatalogSchema.js";
@@ -13,10 +14,11 @@ import { ParameterizedControlFlow1791398000000 } from "../migrations/17913980000
 import { RefreshFoundationsCurriculum1791399000000 } from "../migrations/1791399000000-RefreshFoundationsCurriculum.js";
 import { AdminCatalogService } from "./admin-catalog.service.js";
 import { CurriculumAuditEventEntity } from "./catalog.entities.js";
+import { CollectibleItemsPilot1791404000000 } from "../migrations/1791404000000-CollectibleItemsPilot.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/kodergarden_test(?:\?|$)/.test(url)) throw new Error("Database tests require a DATABASE_URL whose database is named kodergarden_test");
-const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000, TeamRoles1791397000000, ParameterizedControlFlow1791398000000, RefreshFoundationsCurriculum1791399000000], synchronize: false });
+const dataSource = new DataSource({ type: "postgres", url, entities: [...catalogEntities, ...authEntities], migrations: [InitialCatalogSchema1791394000000, AdminAuthSchema1791395000000, CurriculumDrafts1791396000000, TeamRoles1791397000000, ParameterizedControlFlow1791398000000, RefreshFoundationsCurriculum1791399000000, AssessmentEvidence1791400000000], synchronize: false });
 await dataSource.initialize();
 try {
   await dataSource.dropDatabase(); await dataSource.runMigrations();
@@ -45,5 +47,25 @@ try {
   const admin=await dataSource.getRepository(AdminUserEntity).findOneByOrFail({email:"team@example.com"});const adminCatalog=new AdminCatalogService(dataSource,service);const original=(await service.campaign("foundations","en")).campaign;const created=await adminCatalog.createDraft("foundations",admin.id);if(created.draft.version!==2)throw new Error("draft must increment the published version");const changed={...created.draft,translations:{...created.draft.translations,en:{...created.draft.translations.en,title:"Foundations revised"}}};await adminCatalog.updateDraft(created.draft.id,{order:changed.order,translations:changed.translations,challenges:changed.challenges},admin.id);if((await service.campaign("foundations","en")).campaign.titleKey!==original.titleKey)throw new Error("draft edits must not reach learners");if((await adminCatalog.preview(created.draft.id,"en")).campaign.titleKey!=="Foundations revised")throw new Error("draft preview must expose draft copy");const published=await adminCatalog.publish(created.draft.id,admin.id);if(published.campaign.revisionId===original.revisionId||(await service.campaign("foundations","en")).campaign.titleKey!=="Foundations revised")throw new Error("publish must atomically advance the learner revision");if(await dataSource.getRepository(CurriculumAuditEventEntity).countBy({revisionId:created.draft.id})!==3)throw new Error("draft lifecycle must be audited");
   const structural=await adminCatalog.createDraft("garden-expedition",admin.id);if(!(await adminCatalog.validateDraft(structural.draft.id)).valid)throw new Error("seeded draft reference solutions must validate");const duplicated=await adminCatalog.duplicateChallenge(structural.draft.id,structural.draft.challenges[0]!.slug,"new-structural-challenge",admin.id);if(duplicated.draft.challenges.length!==structural.draft.challenges.length+1)throw new Error("challenge duplication must clone into the draft");const newChallenge=duplicated.draft.challenges.find(item=>item.slug==="new-structural-challenge")!;const configured={...newChallenge,order:1,allowed:["moveForward"] as const,maxBlocks:3,parBlocks:null,parSteps:null,world:{...newChallenge.world,robot:{...newChallenge.world.robot,direction:"north" as const}},layouts:[{slug:"alternate-route",order:1,world:newChallenge.world}],starter:{version:1 as const,statements:[{type:"moveForward" as const}]}};const reordered=duplicated.draft.challenges.filter(item=>item.slug!==configured.slug).map((item,index)=>({...item,order:index+2}));const updated=await adminCatalog.updateDraft(structural.draft.id,{order:duplicated.draft.order,translations:duplicated.draft.translations,challenges:[configured,...reordered]},admin.id);const savedMechanics=updated.draft.challenges[0];if(savedMechanics?.slug!==configured.slug||savedMechanics.maxBlocks!==3)throw new Error("challenge order, tools, and limits must persist");if(savedMechanics.world.robot.direction!=="north"||savedMechanics.layouts[0]?.slug!=="alternate-route"||savedMechanics.starter.statements[0]?.type!=="moveForward")throw new Error("grid, dynamic layouts, and starter program must persist");const removed=await adminCatalog.removeChallenge(structural.draft.id,configured.slug,admin.id);if(removed.draft.challenges.some(item=>item.slug===configured.slug))throw new Error("draft challenge removal must persist");
   const history=await adminCatalog.history("foundations");if(history.revisions.length!==2||history.events.length!==3)throw new Error("revision and audit history must be visible");const restored=await adminCatalog.restoreRevision("foundations",original.revisionId,admin.id);if(restored.draft.version!==3||restored.draft.translations.en.title===changed.translations.en.title)throw new Error("historical revisions must restore into a new draft");
+  // Pilot seeding never overwrites the baseline; type and policy survive every draft path.
+  const baselineBefore=(await service.campaign("foundations","en")).campaign.revisionId;
+  process.env.ENABLE_CURRICULUM_PILOT="true";
+  await seedCatalog(dataSource);await seedCatalog(dataSource);
+  const collectMigration=new CollectibleItemsPilot1791404000000();const collectRunner=dataSource.createQueryRunner();await collectMigration.up(collectRunner);await collectRunner.release();
+  const pilot=(await service.campaign("foundations-pilot-v1","es")).campaign;
+  if(pilot.challenges.length!==19||pilot.challenges[16]?.type!=="predict"||pilot.challenges[14]?.assessment?.scope!=="case-family"||pilot.challenges[18]?.worldVariants?.[1]?.world.items?.length!==3)throw new Error("pilot activity, evidence, and item mechanics must survive catalog serialization");
+  if((await service.campaign("foundations","en")).campaign.revisionId!==baselineBefore)throw new Error("pilot seeding must preserve baseline revision");
+  const pilotDraft=await adminCatalog.createDraft("foundations-pilot-v1",admin.id);
+  if(!(await adminCatalog.validateDraft(pilotDraft.draft.id)).valid)throw new Error("pilot references must satisfy the publication contract");
+  const savedPilot=await adminCatalog.updateDraft(pilotDraft.draft.id,{order:pilotDraft.draft.order,translations:pilotDraft.draft.translations,challenges:pilotDraft.draft.challenges},admin.id);
+  if(savedPilot.draft.challenges[16]?.type!=="predict"||savedPilot.draft.challenges[17]?.assessment?.occasion!=="delayed")throw new Error("draft save must preserve evidence configuration");
+  const copied=await adminCatalog.duplicateChallenge(pilotDraft.draft.id,"pilot-v1-predict-turn","pilot-predict-copy",admin.id);
+  if(copied.draft.challenges.find(c=>c.slug==="pilot-predict-copy")?.type!=="predict")throw new Error("duplicate must retain activity type");
+  await adminCatalog.removeChallenge(pilotDraft.draft.id,"pilot-predict-copy",admin.id);
+  await adminCatalog.publish(pilotDraft.draft.id,admin.id);
+  const restoredPilot=await adminCatalog.restoreRevision("foundations-pilot-v1",pilot.revisionId,admin.id);
+  if(restoredPilot.draft.challenges[17]?.type!=="debug")throw new Error("restore must retain repair activity");
+  delete process.env.ENABLE_CURRICULUM_PILOT;
+  if((await service.summaries()).campaigns.some(c=>c.id==="foundations-pilot-v1"))throw new Error("pilot flag is a reversible visibility gate");
   console.log("database: catalog, admin sessions, team roles, validation, history, recovery, and publishing passed");
 } finally { await dataSource.destroy(); }

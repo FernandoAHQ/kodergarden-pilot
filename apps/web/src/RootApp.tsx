@@ -27,6 +27,7 @@ function Brand() {
 export function RootApp() {
   const { locale, setLocale, t } = useI18n();
   const catalog = useCatalog();
+  const [practiceCampaignId,setPracticeCampaignId]=useState("foundations");
   const [experience, setExperience] = useState<Experience>(() => {
     if (sessionStorage.getItem("kodergarden.live.participant")) return "student";
     if (sessionStorage.getItem("kodergarden.live.teacherTab") && localStorage.getItem("kodergarden.live.teacher")) return "teacher";
@@ -36,9 +37,12 @@ export function RootApp() {
 
   if (catalog.loading && catalog.campaigns.length === 0) return <main className="catalog-state"><h1>{t("catalog.loading")}</h1></main>;
   if (catalog.error && catalog.campaigns.length === 0) return <main className="catalog-state"><h1>{t("catalog.unavailable")}</h1><p>{catalog.error}</p><button className="live-primary" onClick={catalog.retry}>{t("catalog.retry")}</button></main>;
-  const foundations = catalog.campaigns.find((campaign) => campaign.kind === "guided");
+  const foundations = catalog.campaigns.find(campaign=>campaign.id===practiceCampaignId) ?? catalog.campaigns.find((campaign) => campaign.kind === "guided");
   if (!foundations) return <main className="catalog-state"><h1>{t("catalog.unavailable")}</h1></main>;
-  if (experience === "practice") return <PracticeMode challenges={foundations.challenges} onBack={() => setExperience("home")} />;
+  if (experience === "practice") {
+    const curriculumControl = <label className="curriculum-picker"><span>{t("assessment.curriculum")}</span><select aria-label={t("assessment.curriculum")} value={foundations.id} onChange={event=>setPracticeCampaignId(event.target.value)}>{catalog.campaigns.filter(campaign=>campaign.kind==="guided").map(campaign=><option key={campaign.id} value={campaign.id}>{t(campaign.titleKey)}</option>)}</select></label>;
+    return <PracticeMode key={foundations.id} challenges={foundations.challenges} onBack={() => setExperience("home")} curriculumControl={curriculumControl}/>;
+  }
   if (experience === "challenges") return <CampaignMode campaigns={catalog.campaigns} onBack={() => setExperience("home")} />;
   if (experience === "teacher") return <LiveTeacher onBack={() => setExperience("home")} />;
   if (experience === "student") return <LiveStudent onBack={() => setExperience("home")} />;

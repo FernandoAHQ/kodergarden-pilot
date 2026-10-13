@@ -26,7 +26,7 @@ export function validateProgram(
   const errors: string[] = [];
   let blocks = 0;
 
-  let version: 1 | 2 | 3 | undefined;
+  let version: 1 | 2 | 3 | 4 | undefined;
   const validatePathCondition = (value: unknown, path: string, canonicalRequired = false): boolean => {
     if (!isRecord(value)) {
       errors.push(`${path} must be a path condition`);
@@ -37,11 +37,21 @@ export function validateProgram(
       errors.push(`${path} must be path ahead, left, or right`);
       return false;
     }
-    if (version !== 3) {
-      errors.push(`${path} requires program.version 3`);
+    if (version !== 3 && version !== 4) {
+      errors.push(`${path} requires program.version 3 or 4`);
       return false;
     }
     return true;
+  };
+  const validateCondition = (value: unknown, path: string): boolean => {
+    if (isRecord(value) && value.type === "itemHere") {
+      if (version !== 4) {
+        errors.push(`${path} item sensor requires program.version 4`);
+        return false;
+      }
+      return true;
+    }
+    return validatePathCondition(value, path);
   };
   const validateStatements = (
     value: unknown,
@@ -76,6 +86,12 @@ export function validateProgram(
         case "turnLeft":
         case "turnRight":
           break;
+        case "collect":
+          if (version !== 4) {
+            errors.push(`${statementPath}.type requires program.version 4`);
+            valid = false;
+          }
+          break;
         case "repeat":
           if (!Number.isInteger(candidate.count) || (candidate.count as number) < 1 || (candidate.count as number) > limits.maxRepeatCount) {
             errors.push(`${statementPath}.count must be an integer from 1 to ${limits.maxRepeatCount}`);
@@ -84,29 +100,29 @@ export function validateProgram(
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         case "if":
-          if (!validatePathCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
+          if (!validateCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         case "ifElse":
-          if (version !== 2 && version !== 3) {
-            errors.push(`${statementPath}.type requires program.version 2 or 3`);
+          if (version !== 2 && version !== 3 && version !== 4) {
+            errors.push(`${statementPath}.type requires program.version 2, 3, or 4`);
             valid = false;
           }
-          if (!validatePathCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
+          if (!validateCondition(candidate.condition, `${statementPath}.condition`)) valid = false;
           if (!validateStatements(candidate.thenBody, `${statementPath}.thenBody`, depth + 1)) valid = false;
           if (!validateStatements(candidate.elseBody, `${statementPath}.elseBody`, depth + 1)) valid = false;
           break;
         case "while":
-          if (version !== 3) {
-            errors.push(`${statementPath}.type requires program.version 3`);
+          if (version !== 3 && version !== 4) {
+            errors.push(`${statementPath}.type requires program.version 3 or 4`);
             valid = false;
           }
           if (!validatePathCondition(candidate.condition, `${statementPath}.condition`, true)) valid = false;
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
           break;
         case "repeatUntilGoal":
-          if (version !== 3) {
-            errors.push(`${statementPath}.type requires program.version 3`);
+          if (version !== 3 && version !== 4) {
+            errors.push(`${statementPath}.type requires program.version 3 or 4`);
             valid = false;
           }
           if (!validateStatements(candidate.body, `${statementPath}.body`, depth + 1)) valid = false;
@@ -120,7 +136,7 @@ export function validateProgram(
   };
 
   if (!isRecord(input)) return { ok: false, errors: ["program must be an object"] };
-  if (input.version !== 1 && input.version !== 2 && input.version !== 3) errors.push("program.version must be 1, 2, or 3");
+  if (input.version !== 1 && input.version !== 2 && input.version !== 3 && input.version !== 4) errors.push("program.version must be 1, 2, 3, or 4");
   else version = input.version;
   validateStatements(input.statements, "program.statements", 1);
 

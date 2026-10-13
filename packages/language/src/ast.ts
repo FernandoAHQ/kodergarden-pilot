@@ -2,6 +2,7 @@ export type Statement =
   | { readonly type: "moveForward" }
   | { readonly type: "turnLeft" }
   | { readonly type: "turnRight" }
+  | { readonly type: "collect" }
   | {
       readonly type: "repeat";
       readonly count: number;
@@ -31,11 +32,12 @@ export type Statement =
 export type PathDirection = "ahead" | "left" | "right";
 export type LegacyPathCondition = { readonly type: "pathAhead" };
 export type PathCondition = { readonly type: "path"; readonly direction: PathDirection };
-export type Condition = LegacyPathCondition | PathCondition;
-export type EvaluatedCondition = PathCondition | { readonly type: "goalReached" };
+export type ItemCondition = { readonly type: "itemHere" };
+export type Condition = LegacyPathCondition | PathCondition | ItemCondition;
+export type EvaluatedCondition = PathCondition | ItemCondition | { readonly type: "goalReached" };
 
 export interface Program {
-  readonly version: 1 | 2 | 3;
+  readonly version: 1 | 2 | 3 | 4;
   readonly statements: readonly Statement[];
 }
 
@@ -51,5 +53,10 @@ export const programV2 = (statements: readonly Statement[]): Program => ({
 
 export const programV3 = (statements: readonly Statement[]): Program => ({
   version: 3,
+  statements,
+});
+
+export const programV4 = (statements: readonly Statement[]): Program => ({
+  version: 4,
   statements,
 });

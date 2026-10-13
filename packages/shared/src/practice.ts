@@ -1,7 +1,7 @@
 import { executeProgram, GridRuntime, type GridWorldDefinition } from "@kodergarden/engine";
-import { program, programV3, type PathDirection, type Program, type Statement } from "@kodergarden/language";
+import { countBlocks, validateProgram, program, programV3, programV4, type PathDirection, type Program, type Statement } from "@kodergarden/language";
 
-export type EditorTool = "moveForward" | "turn" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
+export type EditorTool = "moveForward" | "turn" | "collect" | "repeat" | "if" | "ifElse" | "while" | "repeatUntilGoal";
 export type CampaignId = string;
 export type CampaignKind = "guided" | "advanced";
 
@@ -15,11 +15,21 @@ export interface SelectedChallengeWorld {
   readonly world: GridWorldDefinition;
 }
 
+export type EvaluationScope = "active-case" | "case-family";
+export interface AssessmentPolicy {
+  readonly scope: EvaluationScope;
+  readonly correctness: "legacy" | "discovery";
+  readonly maxCollisions: number | null;
+  readonly occasion: "initial" | "fresh" | "delayed";
+}
+export const evaluationScope = (challenge: PracticeChallengeDefinition): EvaluationScope => challenge.assessment?.scope ?? "case-family";
+
 export interface PracticeChallengeDefinition {
   readonly id: string;
   readonly campaignId: CampaignId;
   readonly order: number;
-  readonly type: "build";
+  readonly type: "build" | "predict" | "debug" | "family";
+  readonly assessment?: AssessmentPolicy;
   readonly titleKey: string;
   readonly instructionKey: string;
   readonly conceptKey: string;
@@ -68,9 +78,11 @@ const line = (from: number, to: number, fixed: number, axis: "x" | "y") => Array
 const move = (): Statement => ({ type: "moveForward" });
 const left = (): Statement => ({ type: "turnLeft" });
 const right = (): Statement => ({ type: "turnRight" });
+const collect = (): Statement => ({ type: "collect" });
 const repeat = (count: number, body: readonly Statement[]): Statement => ({ type: "repeat", count, body });
 const ifPath = (body: readonly Statement[]): Statement => ({ type: "if", condition: { type: "pathAhead" }, body });
 const path = (direction: PathDirection) => ({ type: "path", direction } as const);
+const itemHere = () => ({ type: "itemHere" as const });
 const allTools: readonly EditorTool[] = ["moveForward", "turn", "repeat", "if"];
 
 export function resolveChallengeWorld(challenge: PracticeChallengeDefinition, layoutId: string | null | undefined): GridWorldDefinition {
@@ -104,11 +116,11 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "condition-repeat", campaignId: "foundations", order: 11, type: "build", titleKey: "c.11.title", instructionKey: "c.11.instruction", conceptKey: "c.11.concept", world: corridor(8,3,line(0,2,1,"x"),"east"), worldVariants: [
     { id:"medium", world:corridor(8,3,line(0,4,1,"x"),"east") },
     { id:"long", world:corridor(8,3,line(0,6,1,"x"),"east") },
-  ], allowed: ["moveForward", "repeat", "if"], starter: empty(), maxBlocks: 3, referenceSolution: program([repeat(6,[ifPath([move()])])]) },
+  ], allowed: ["moveForward", "while"], starter: empty(), maxBlocks: 2, requiredTools:["while"], unlockKey:"while", referenceSolution: programV3([{ type:"while", condition:path("ahead"), body:[move()] }]) },
   { id: "final", campaignId: "foundations", order: 12, type: "build", titleKey: "c.12.title", instructionKey: "c.12.instruction", conceptKey: "c.12.concept", world: corridor(7,7,[...line(1,5,1,"x"),...line(2,5,5,"y")],"east"), worldVariants: [
     { id:"short-long", world:corridor(7,7,[...line(1,3,1,"x"),...line(2,6,3,"y")],"east") },
     { id:"long-short", world:corridor(7,7,[...line(1,6,1,"x"),...line(2,3,6,"y")],"east") },
-  ], allowed: allTools, starter: empty(), maxBlocks: 7, referenceSolution: program([repeat(6,[ifPath([move()])]),right(),repeat(6,[ifPath([move()])])]) },
+  ], allowed: ["moveForward", "turn", "while"], starter: empty(), maxBlocks: 5, requiredTools:["while"], referenceSolution: programV3([{type:"while",condition:path("ahead"),body:[move()]},right(),{type:"while",condition:path("ahead"),body:[move()]}]) },
   { id: "if-else", campaignId: "foundations", order: 13, type: "build", titleKey: "c.13.title", instructionKey: "c.13.instruction", conceptKey: "c.13.concept", world: shiftingCorridor(5,6,[{x:1,y:4},{x:1,y:3},{x:1,y:2},{x:1,y:1}],"east",[{id:"choice-hedge",from:{x:2,y:3},to:{x:2,y:4}}]), worldVariants: [
     { id:"one-step-before-turn", world:shiftingCorridor(5,6,[{x:0,y:4},{x:1,y:4},{x:1,y:3},{x:1,y:2}],"east",[{id:"choice-hedge",from:{x:2,y:3},to:{x:2,y:4}}]) },
     { id:"two-steps-before-turn", world:shiftingCorridor(5,6,[{x:0,y:4},{x:1,y:4},{x:2,y:4},{x:2,y:3}],"east",[{id:"choice-hedge",from:{x:3,y:3},to:{x:3,y:4}}]) },
@@ -119,7 +131,7 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
   { id: "while-hallway", campaignId: "foundations", order: 15, type: "build", titleKey: "c.15.title", instructionKey: "c.15.instruction", conceptKey: "c.15.concept", world: corridor(3,8,line(7,5,1,"y"),"north"), worldVariants: [
     { id: "medium", world: corridor(3,8,line(7,3,1,"y"),"north") },
     { id: "long", world: corridor(3,8,line(7,1,1,"y"),"north") },
-  ], allowed: ["moveForward", "while"], starter: empty(), maxBlocks: 2, requiredTools:["while"], unlockKey: "while", referenceSolution: programV3([{ type: "while", condition: path("ahead"), body: [move()] }]) },
+  ], allowed: ["moveForward", "while"], starter: empty(), maxBlocks: 2, requiredTools:["while"], referenceSolution: programV3([{ type: "while", condition: path("ahead"), body: [move()] }]) },
   { id: "repeat-until-battery", campaignId: "foundations", order: 16, type: "build", titleKey: "c.16.title", instructionKey: "c.16.instruction", conceptKey: "c.16.concept", world: shiftingCorridor(7,7,[{x:1,y:5},{x:2,y:5},{x:3,y:5},{x:4,y:5},{x:4,y:4},{x:4,y:3},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:1,y:2}],"east",[{id:"corner-one",from:{x:5,y:4},to:{x:5,y:5}},{id:"corner-two",from:{x:5,y:1},to:{x:4,y:1}}]), worldVariants: [
     { id:"south-east-north", world:shiftingCorridor(7,7,[{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4},{x:4,y:3},{x:4,y:2},{x:4,y:1}],"south",[{id:"corner-one",from:{x:0,y:5},to:{x:1,y:5}},{id:"corner-two",from:{x:5,y:5},to:{x:5,y:4}}]) },
     { id:"north-west-south", world:shiftingCorridor(7,7,[{x:5,y:5},{x:5,y:4},{x:5,y:3},{x:5,y:2},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:2,y:3},{x:2,y:4},{x:2,y:5}],"north",[{id:"corner-one",from:{x:6,y:1},to:{x:5,y:1}},{id:"corner-two",from:{x:1,y:1},to:{x:1,y:2}}]) },
@@ -130,16 +142,48 @@ export const gardenExpeditionChallenges: readonly PracticeChallengeDefinition[] 
   { id: "expedition-winding-path", campaignId: "garden-expedition", order: 1, type: "build", titleKey: "exp.01.title", instructionKey: "exp.01.instruction", conceptKey: "exp.01.concept", world: world(7, 7, 1, 5, "east", 5, 1, [{x:3,y:3},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 5, parSteps: 9, referenceSolution: program([repeat(4,[move()]),left(),repeat(4,[move()])]) },
   { id: "expedition-twin-corridors", campaignId: "garden-expedition", order: 2, type: "build", titleKey: "exp.02.title", instructionKey: "exp.02.instruction", conceptKey: "exp.02.concept", world: world(8, 7, 0, 5, "north", 6, 1, [{x:2,y:2},{x:3,y:2},{x:4,y:2}]), allowed: allTools, starter: empty(), parBlocks: 5, parSteps: 11, referenceSolution: program([repeat(4,[move()]),right(),repeat(6,[move()])]) },
   { id: "expedition-spiral-garden", campaignId: "garden-expedition", order: 3, type: "build", titleKey: "exp.03.title", instructionKey: "exp.03.instruction", conceptKey: "exp.03.concept", world: world(7, 7, 1, 5, "east", 3, 3, [{x:4,y:4},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 6, referenceSolution: program([repeat(2,[repeat(2,[move()]),left()])]) },
-  { id: "expedition-gate-check", campaignId: "garden-expedition", order: 4, type: "build", titleKey: "exp.04.title", instructionKey: "exp.04.instruction", conceptKey: "exp.04.concept", world: world(6, 5, 0, 2, "east", 5, 2), allowed: allTools, starter: empty(), parBlocks: 3, parSteps: 5, referenceSolution: program([repeat(8,[ifPath([move()])])]) },
+  { id: "expedition-gate-check", campaignId: "garden-expedition", order: 4, type: "build", titleKey: "exp.04.title", instructionKey: "exp.04.instruction", conceptKey: "exp.04.concept", world: world(6, 5, 0, 2, "east", 5, 2), allowed: [...allTools,"while"], starter: empty(), parBlocks: 2, parSteps: 5, referenceSolution: programV3([{type:"while",condition:path("ahead"),body:[move()]}]) },
   { id: "expedition-patrol-route", campaignId: "garden-expedition", order: 5, type: "build", titleKey: "exp.05.title", instructionKey: "exp.05.instruction", conceptKey: "exp.05.concept", world: world(8, 7, 1, 5, "east", 5, 1, [{x:2,y:3},{x:3,y:3},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 7, parSteps: 9, referenceSolution: program([repeat(4,[ifPath([move()])]),left(),repeat(4,[ifPath([move()])])]) },
   { id: "expedition-nested-trail", campaignId: "garden-expedition", order: 6, type: "build", titleKey: "exp.06.title", instructionKey: "exp.06.instruction", conceptKey: "exp.06.concept", world: world(7, 7, 1, 1, "east", 3, 3, [{x:4,y:2},{x:2,y:4}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 6, referenceSolution: program([repeat(2,[repeat(2,[move()]),right()])]) },
   { id: "expedition-detour", campaignId: "garden-expedition", order: 7, type: "build", titleKey: "exp.07.title", instructionKey: "exp.07.instruction", conceptKey: "exp.07.concept", world: world(7, 7, 1, 5, "east", 5, 1, [{x:3,y:2},{x:3,y:3},{x:3,y:4},{x:3,y:5}]), allowed: allTools, starter: empty(), parBlocks: 6, parSteps: 10, referenceSolution: program([left(),repeat(4,[move()]),right(),repeat(4,[move()])]) },
   { id: "expedition-summit", campaignId: "garden-expedition", order: 8, type: "build", titleKey: "exp.08.title", instructionKey: "exp.08.instruction", conceptKey: "exp.08.concept", world: world(8, 8, 1, 5, "east", 4, 2, [{x:5,y:4},{x:5,y:5},{x:2,y:2}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 8, referenceSolution: program([repeat(2,[repeat(3,[move()]),left()])]) },
 ];
 
+/** Isolated pilot revision. Historical Foundations definitions and progress IDs stay intact. */
+export const revisedPracticeChallenges: readonly PracticeChallengeDefinition[] = practiceChallenges.map((source) => {
+  const { maxBlocks, requiredTools, ...base } = source;
+  const challenge: PracticeChallengeDefinition = { ...base, id: `pilot-v1-${source.id}`, campaignId: "foundations-pilot-v1", ...(maxBlocks === undefined ? {} : {parBlocks: maxBlocks}),
+    assessment: { scope: "case-family", correctness: "discovery", maxCollisions: 0, occasion: "initial" } };
+  if (source.id === "condition-01") return { ...challenge, type: "family", titleKey: "pilot.if.title", instructionKey: "pilot.if.instruction", conceptKey: "pilot.if.concept",
+    world: corridor(3,3,[{x:1,y:1},{x:1,y:0}],"north"), worldVariants: [{id:"closed",world:corridor(3,3,[{x:1,y:1}],"north")}] };
+  if (source.id === "if-else") return { ...challenge, type: "family", titleKey: "pilot.choice.title", instructionKey: "pilot.choice.instruction", conceptKey: "pilot.choice.concept",
+    world: corridor(5,5,[{x:2,y:3},{x:1,y:3},{x:0,y:3}],"north"), worldVariants: [{id:"right",world:corridor(5,5,[{x:2,y:3},{x:3,y:3},{x:4,y:3}],"north")}],
+    referenceSolution: programV3([{type:"ifElse",condition:path("left"),thenBody:[left()],elseBody:[right()]},repeat(2,[move()])]) };
+  if (source.id === "while-hallway") return { ...challenge, type: "family", titleKey: "pilot.while.title", instructionKey: "pilot.while.instruction", conceptKey: "pilot.while.concept", allowed:["moveForward","repeat","if","while"],
+    world:corridor(8,3,line(0,0,1,"x"),"east"), worldVariants:[1,3,6].map(length=>({id:`length-${length}`,world:corridor(8,3,line(0,length,1,"x"),"east")})) };
+  if (source.id === "repeat-until-battery") {
+    const lane = corridor(8,3,line(0,7,1,"x"),"east");
+    return { ...challenge, type: "family", titleKey: "pilot.until.title", instructionKey: "pilot.until.instruction", conceptKey: "pilot.until.concept", allowed:["moveForward","while","repeatUntilGoal"],
+      world:{...lane,goal:{x:0,y:1}},worldVariants:[2,4,6].map(x=>({id:`battery-${x}`,world:{...lane,goal:{x,y:1}}})), referenceSolution:programV3([{type:"repeatUntilGoal",body:[move()]}]) };
+  }
+  return { ...challenge, instructionKey: `pilot.${source.id}.instruction` };
+});
+const predictionWorld = world(4,4,1,2,"north",2,1);
+export const pilotCampaign: CampaignDefinition = { id:"foundations-pilot-v1",order:3,kind:"guided",titleKey:"pilot.title",descriptionKey:"pilot.description",challenges:[...revisedPracticeChallenges,
+  {id:"pilot-v1-predict-turn",campaignId:"foundations-pilot-v1",order:17,type:"predict",titleKey:"pilot.predict.title",instructionKey:"pilot.predict.instruction",conceptKey:"pilot.predict.concept",world:predictionWorld,allowed:["moveForward","turn"],starter:program([move(),right(),move()]),assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"fresh"}},
+  {id:"pilot-v1-debug-until",campaignId:"foundations-pilot-v1",order:18,type:"debug",titleKey:"pilot.debug.title",instructionKey:"pilot.debug.instruction",conceptKey:"pilot.debug.concept",world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:3,y:1}},allowed:["moveForward","repeatUntilGoal"],starter:programV3([{type:"repeatUntilGoal",body:[move(),move()]}]),referenceSolution:programV3([{type:"repeatUntilGoal",body:[move()]}]),assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"delayed"}},
+  {id:"pilot-v1-collect-packets",campaignId:"foundations-pilot-v1",order:19,type:"family",titleKey:"pilot.collect.title",instructionKey:"pilot.collect.instruction",conceptKey:"pilot.collect.concept",
+    world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[]},worldVariants:[
+      {id:"one-packet",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-1",position:{x:1,y:1}}]}},
+      {id:"three-packets",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-0",position:{x:0,y:1}},{id:"packet-2",position:{x:2,y:1}},{id:"packet-3",position:{x:3,y:1}}]}},
+      {id:"fresh-placement",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-0",position:{x:0,y:1}},{id:"packet-1",position:{x:1,y:1}},{id:"packet-3",position:{x:3,y:1}}]}},
+    ],allowed:["moveForward","repeat","if","collect"],starter:programV4([]),referenceSolution:programV4([repeat(4,[{type:"if",condition:itemHere(),body:[collect()]},move()])]),assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"fresh"},parBlocks:4},
+] };
+
 export const campaigns: readonly CampaignDefinition[] = [
   { id: "foundations", order: 1, kind: "guided", titleKey: "campaign.foundations.title", descriptionKey: "campaign.foundations.description", challenges: practiceChallenges },
   { id: "garden-expedition", order: 2, kind: "advanced", titleKey: "campaign.expedition.title", descriptionKey: "campaign.expedition.description", challenges: gardenExpeditionChallenges },
+  pilotCampaign,
 ];
 export const allChallenges = campaigns.flatMap((campaign) => campaign.challenges);
 export const getCampaign = (id: string): CampaignDefinition | undefined => campaigns.find((campaign) => campaign.id === id);
@@ -153,30 +197,42 @@ const toolForStatement = (statement: Statement): EditorTool => statement.type ==
 const programUsesTool = (statements: readonly Statement[], tool: EditorTool): boolean => statements.some((statement) => toolForStatement(statement) === tool || (statement.type === "repeat" || statement.type === "if" || statement.type === "while" || statement.type === "repeatUntilGoal") && programUsesTool(statement.body, tool) || statement.type === "ifElse" && (programUsesTool(statement.thenBody, tool) || programUsesTool(statement.elseBody, tool)));
 const collisionsIn = (events: ReturnType<typeof executeProgram>["events"]): number => events.filter((event) => event.type === "runtimeEffect" && event.effect.type === "blocked").length;
 
-export interface ChallengeLayoutEvaluation { readonly id: string; readonly succeeded: boolean; readonly collisions: number; readonly executionSteps: number }
+export interface ChallengeLayoutEvaluation { readonly id: string; readonly succeeded: boolean; readonly goalReached: boolean; readonly allItemsCollected: boolean; readonly itemsCollected: number; readonly itemsTotal: number; readonly invalidCollections: number; readonly stoppedByLimit: boolean; readonly collisions: number; readonly executionSteps: number }
 export interface ChallengeProgramEvaluation {
-  readonly complete: boolean; readonly goalReached: boolean; readonly withinBlockLimit: boolean; readonly requiredToolsUsed: boolean; readonly collisionFree: boolean;
+  readonly scope: EvaluationScope; readonly complete: boolean; readonly goalReached: boolean; readonly withinBlockLimit: boolean; readonly requiredToolsUsed: boolean; readonly collisionFree: boolean;
+  readonly valid: boolean; readonly stoppedByLimit: boolean; readonly optimized: boolean; readonly allItemsCollected: boolean; readonly validCollections: boolean;
   readonly blocks: number; readonly layouts: readonly ChallengeLayoutEvaluation[]; readonly firstFailingLayoutId: string | null;
 }
 
-export function evaluatePracticeProgram(challenge: PracticeChallengeDefinition, candidate: Program, blocks: number): ChallengeProgramEvaluation {
-  const layouts = challengeWorlds(challenge).map(({id,world}) => { const result=executeProgram(candidate,new GridRuntime(world)); return { id, succeeded:result.succeeded, collisions:collisionsIn(result.events), executionSteps:result.executionSteps }; });
-  const withinBlockLimit=challenge.maxBlocks===undefined||blocks<=challenge.maxBlocks;
-  const requiredToolsUsed=(challenge.requiredTools??[]).every((tool)=>programUsesTool(candidate.statements,tool));
-  const collisionLimit=challenge.maxCollisions??(challenge.campaignId==="foundations"?0:Number.POSITIVE_INFINITY);
-  const collisionFree=layouts.every((layout)=>layout.collisions<=collisionLimit);
-  const goalReached=layouts.every((layout)=>layout.succeeded);
-  const firstFailingLayoutId=layouts.find((layout)=>!layout.succeeded||layout.collisions>collisionLimit)?.id??null;
-  return { complete:goalReached&&withinBlockLimit&&requiredToolsUsed&&collisionFree, goalReached, withinBlockLimit, requiredToolsUsed, collisionFree, blocks, layouts, firstFailingLayoutId };
+/** One contract for browser, Live server and catalog publication. Caller block counts are never trusted. */
+export function evaluateChallengeProgram(challenge: PracticeChallengeDefinition, candidate: Program, activeWorld = challenge.world, scope = evaluationScope(challenge)): ChallengeProgramEvaluation {
+  const validation = validateProgram(candidate);
+  const valid = validation.ok && candidate.statements.every(statement => statementAllowed(statement, challenge.allowed));
+  const blocks = validation.ok ? countBlocks(validation.program) : 0;
+  const layouts = valid ? (scope === "case-family" ? challengeWorlds(challenge) : [{ id: "active", world: activeWorld }]).map(({id,world}) => {
+    const result = executeProgram(candidate, new GridRuntime(world));
+    const state = result.finalState;
+    return { id, succeeded: result.succeeded, goalReached: state.destinationReached, allItemsCollected: state.collectedItems === state.totalItems, itemsCollected:state.collectedItems,itemsTotal:state.totalItems,invalidCollections:state.invalidCollections,stoppedByLimit: result.stoppedByLimit, collisions: collisionsIn(result.events), executionSteps: result.executionSteps };
+  }) : [];
+  const discovery = challenge.assessment?.correctness === "discovery";
+  const withinBlockLimit = discovery || challenge.maxBlocks === undefined || blocks <= challenge.maxBlocks;
+  const requiredToolsUsed = discovery || (challenge.requiredTools ?? []).every(tool => programUsesTool(candidate.statements, tool));
+  const collisionLimit = challenge.assessment ? challenge.assessment.maxCollisions ?? Infinity : challenge.maxCollisions ?? (challenge.campaignId === "foundations" ? 0 : Infinity);
+  const collisionFree = layouts.every(layout => layout.collisions <= collisionLimit);
+  const goalReached = valid && layouts.length > 0 && layouts.every(layout => layout.goalReached);
+  const allItemsCollected = valid && layouts.length > 0 && layouts.every(layout => layout.allItemsCollected);
+  const validCollections = layouts.every(layout => layout.invalidCollections === 0);
+  const stoppedByLimit = layouts.some(layout => layout.stoppedByLimit);
+  const complete = goalReached && allItemsCollected && validCollections && !stoppedByLimit && withinBlockLimit && requiredToolsUsed && collisionFree;
+  return { scope, valid, complete, goalReached, allItemsCollected, validCollections, stoppedByLimit, withinBlockLimit, requiredToolsUsed, collisionFree, blocks, layouts,
+    optimized: complete && blocks <= (challenge.parBlocks ?? Infinity) && layouts.every(layout => layout.executionSteps <= (challenge.parSteps ?? Infinity)),
+    firstFailingLayoutId: layouts.find(layout => !layout.succeeded || layout.collisions > collisionLimit)?.id ?? null };
 }
-
-export function evaluateLiveProgram(challenge: PracticeChallengeDefinition, candidate: Program, blocks: number, activeWorld: GridWorldDefinition): ChallengeProgramEvaluation {
-  const result=executeProgram(candidate,new GridRuntime(activeWorld)); const collisions=collisionsIn(result.events);
-  const withinBlockLimit=challenge.campaignId==="garden-expedition"||challenge.maxBlocks===undefined||blocks<=challenge.maxBlocks;
-  const requiredToolsUsed=(challenge.requiredTools??[]).every((tool)=>programUsesTool(candidate.statements,tool));
-  const collisionLimit=challenge.maxCollisions??(challenge.campaignId==="foundations"?0:Number.POSITIVE_INFINITY);
-  const collisionFree=collisions<=collisionLimit; const complete=result.succeeded&&withinBlockLimit&&requiredToolsUsed&&collisionFree;
-  return { complete,goalReached:result.succeeded,withinBlockLimit,requiredToolsUsed,collisionFree,blocks,layouts:[{id:"active",succeeded:result.succeeded,collisions,executionSteps:result.executionSteps}],firstFailingLayoutId:complete?null:"active" };
+export function evaluatePracticeProgram(challenge: PracticeChallengeDefinition, candidate: Program, _blocks?: number): ChallengeProgramEvaluation {
+  return evaluateChallengeProgram(challenge, candidate);
+}
+export function evaluateLiveProgram(challenge: PracticeChallengeDefinition, candidate: Program, _blocks: number, activeWorld: GridWorldDefinition): ChallengeProgramEvaluation {
+  return evaluateChallengeProgram(challenge, candidate, activeWorld);
 }
 
 export function statementAllowed(statement: Statement, allowed: readonly EditorTool[]): boolean {

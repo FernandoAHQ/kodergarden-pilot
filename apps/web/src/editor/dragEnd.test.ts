@@ -46,5 +46,6 @@ const ifElseCard = createPaletteStatement("ifElse", () => "choice");
 assert(ifElseCard.type === "ifElse" && ifElseCard.thenBody.length === 0 && ifElseCard.elseBody.length === 0, "palette creates an empty two-branch If / Else block");
 assert(createPaletteStatement("while", () => "while").type === "while", "palette creates While");
 assert(createPaletteStatement("repeatUntilGoal", () => "until").type === "repeatUntilGoal", "palette creates Repeat Until Battery");
+assert(createPaletteStatement("collect", () => "collect").type === "collect", "palette creates Collect");
 
-console.log("editor drag end: 13 tests passed");
+console.log("editor drag end: 14 tests passed");

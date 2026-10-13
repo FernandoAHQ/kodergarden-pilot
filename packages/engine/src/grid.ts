@@ -8,6 +8,7 @@ export interface GridWorldDefinition {
   readonly height: number;
   readonly blocked: readonly Position[];
   readonly shiftingHedges?: readonly { readonly id: string; readonly from: Position; readonly to: Position }[];
+  readonly items?: readonly { readonly id: string; readonly position: Position }[];
   readonly robot: Position & { readonly direction: Direction };
   readonly goal: Position;
 }
@@ -15,6 +16,11 @@ export interface GridSnapshot extends RuntimeSnapshot {
   readonly robot: Position & { readonly direction: Direction };
   readonly goal: Position;
   readonly shiftingHedges?: readonly { readonly id: string; readonly position: Position }[];
+  readonly items?: readonly { readonly id: string; readonly position: Position }[];
+  readonly collectedItems: number;
+  readonly totalItems: number;
+  readonly invalidCollections: number;
+  readonly destinationReached: boolean;
 }
 
 const directions: readonly Direction[] = ["north", "east", "south", "west"];
@@ -27,6 +33,9 @@ export class GridRuntime implements ProgramRuntime<GridSnapshot> {
   private robot: Position & { direction: Direction };
   private readonly blocked: Set<string>;
   private shiftingHedges: { readonly id: string; position: Position; readonly to: Position }[];
+  private readonly items: Map<string, { readonly id: string; readonly position: Position }>;
+  private readonly totalItems: number;
+  private invalidCollections = 0;
 
   constructor(private readonly world: GridWorldDefinition) {
     if (!Number.isInteger(world.width) || !Number.isInteger(world.height) || world.width < 1 || world.height < 1) throw new Error("Grid dimensions must be positive integers");
@@ -40,16 +49,28 @@ export class GridRuntime implements ProgramRuntime<GridSnapshot> {
     for(const hedge of this.shiftingHedges)this.blocked.add(key(hedge.position));
     if (this.blocked.has(key(world.robot)) || this.blocked.has(key(world.goal))) throw new Error("Robot and goal must be on open cells");
     if(dynamicTargets.has(key(world.robot))||dynamicTargets.has(key(world.goal)))throw new Error("Shifting hedges cannot move onto the robot or goal");
+    this.items = new Map();
+    const itemIds = new Set<string>();
+    for (const item of world.items ?? []) {
+      this.assertInside(item.position, "item");
+      if (item.id.trim().length === 0) throw new Error("Item id must not be empty");
+      const position = key(item.position);
+      if (itemIds.has(item.id)) throw new Error("Item ids must be unique");
+      if (this.items.has(position)) throw new Error("Only one item may occupy a cell");
+      if (this.blocked.has(position) || dynamicTargets.has(position)) throw new Error("Items must use open cells");
+      itemIds.add(item.id);
+      this.items.set(position, { id: item.id, position: { ...item.position } });
+    }
+    this.totalItems = this.items.size;
     this.robot = { ...world.robot };
   }
 
   snapshot(): GridSnapshot {
-    return { robot: { ...this.robot }, goal: { ...this.world.goal }, shiftingHedges:this.shiftingHedges.map((hedge)=>({id:hedge.id,position:{...hedge.position}})), completed: key(this.robot) === key(this.world.goal) };
+    const destinationReached = key(this.robot) === key(this.world.goal);
+    return { robot: { ...this.robot }, goal: { ...this.world.goal }, shiftingHedges:this.shiftingHedges.map((hedge)=>({id:hedge.id,position:{...hedge.position}})), items:[...this.items.values()].map(item=>({id:item.id,position:{...item.position}})), collectedItems:this.totalItems-this.items.size,totalItems:this.totalItems,invalidCollections:this.invalidCollections,destinationReached,completed:destinationReached && this.items.size === 0 };
   }
-  beginExecution(): readonly RuntimeEffect[] {
-    const effects: RuntimeEffect[]=[];
-    for(const hedge of this.shiftingHedges){const from={...hedge.position};this.blocked.delete(key(from));if(this.blocked.has(key(hedge.to)))throw new Error("Shifting hedge target must be open when movement begins");hedge.position={...hedge.to};this.blocked.add(key(hedge.position));effects.push({type:"worldChanged",objectId:hedge.id,from,to:{...hedge.position},cause:"before-run"});}
-    return effects;
+  *beginExecution(): Iterable<RuntimeEffect> {
+    for(const hedge of this.shiftingHedges){const from={...hedge.position};this.blocked.delete(key(from));if(this.blocked.has(key(hedge.to)))throw new Error("Shifting hedge target must be open when movement begins");hedge.position={...hedge.to};this.blocked.add(key(hedge.position));yield {type:"worldChanged",objectId:hedge.id,from,to:{...hedge.position},cause:"before-run"};}
   }
   moveForward(): RuntimeEffect {
     const change = delta[this.robot.direction];
@@ -67,6 +88,14 @@ export class GridRuntime implements ProgramRuntime<GridSnapshot> {
     const direction = directions[(directions.indexOf(this.robot.direction) + offset + directions.length) % directions.length]!;
     const change = delta[direction];
     return this.blockReason({ x: this.robot.x + change.x, y: this.robot.y + change.y }) === undefined;
+  }
+  itemPresent(): boolean { return this.items.has(key(this.robot)); }
+  collect(): RuntimeEffect {
+    const position = { x: this.robot.x, y: this.robot.y };
+    const item = this.items.get(key(position));
+    if (!item) { this.invalidCollections += 1; return { type: "collectFailed", reason: "no-item" }; }
+    this.items.delete(key(position));
+    return { type: "collected", objectId: item.id, position };
   }
   private turn(offset: number): RuntimeEffect {
     const from = this.robot.direction;

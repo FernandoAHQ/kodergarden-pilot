@@ -1,6 +1,6 @@
 import { Ack as WsAck, ConnectedSocket, MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import type { LiveError, LiveResult, LiveSessionSnapshot, PilotSessionExport, ServerToClientEvents } from "@kodergarden/shared";
+import type { LiveError, LiveResult, LiveSessionSnapshot, PilotSessionExport, Observation, ServerToClientEvents } from "@kodergarden/shared";
 import { allowedOrigins } from "./deployment.js";
 import { LiveDomainError, LiveSessionService } from "./live-session.service.js";
 
@@ -32,6 +32,8 @@ export class LiveGateway implements OnGatewayDisconnect {
   close(@MessageBody() body: { token: string }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.closeSubmissions(body.token)); }
   @SubscribeMessage("teacher:selectSubmission")
   selectSubmission(@MessageBody() body: { token: string; participantId: string }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.selectSubmission(body.token, body.participantId)); }
+  @SubscribeMessage("teacher:observe")
+  observe(@MessageBody() body: { token: string; roundId: string; participantId: string; observation: Observation }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token,ack,()=>this.sessions.observe(body.token,body.roundId,body.participantId,body.observation)); }
   @SubscribeMessage("teacher:quickPick")
   quickPick(@MessageBody() body: { token: string; strategy: "random" | "fewest" | "earliest" }, @WsAck() ack: Ack<LiveSessionSnapshot>): void { this.teacherAction(body.token, ack, () => this.sessions.quickPick(body.token, body.strategy)); }
   @SubscribeMessage("teacher:returnToReview")
@@ -52,8 +54,8 @@ export class LiveGateway implements OnGatewayDisconnect {
     this.respond(ack, () => { const result = this.sessions.reconnectParticipant(body.token); this.connect(socket, "student", body.token, result.snapshot.sessionId); this.broadcast(result.snapshot.sessionId); return result; });
   }
   @SubscribeMessage("student:submit")
-  submit(@ConnectedSocket() socket: Socket, @MessageBody() body: { participantToken: string; roundId: string; challengeId: string; program: unknown }, @WsAck() ack: Ack<LiveSessionSnapshot>): void {
-    this.respond(ack, () => { this.enforceRateLimit(socket, "submit", 300); const snapshot = this.sessions.submitSolution(body.participantToken, body.roundId, body.challengeId, body.program); const sessionId = this.sessions.getSessionIdForParticipant(body.participantToken); this.broadcast(sessionId); return snapshot; });
+  submit(@ConnectedSocket() socket: Socket, @MessageBody() body: { participantToken: string; roundId: string; challengeId: string; program: unknown; evidence?: unknown }, @WsAck() ack: Ack<LiveSessionSnapshot>): void {
+    this.respond(ack, () => { this.enforceRateLimit(socket, "submit", 300); const snapshot = this.sessions.submitSolution(body.participantToken, body.roundId, body.challengeId, body.program, body.evidence); const sessionId = this.sessions.getSessionIdForParticipant(body.participantToken); this.broadcast(sessionId); return snapshot; });
   }
 
   handleDisconnect(socket: Socket): void { const connection = this.connections.get(socket.id); if (!connection) return; this.connections.delete(socket.id); if ([...this.connections.values()].some((active) => active.token === connection.token)) return; const sessionId = this.sessions.setDisconnected(connection.token); if (sessionId) this.broadcast(sessionId); }

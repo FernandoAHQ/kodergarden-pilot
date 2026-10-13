@@ -1,7 +1,7 @@
 import type { GridWorldDefinition } from "@kodergarden/engine";
 import type { Program, Statement } from "@kodergarden/language";
 
-export type ActivityType = "build" | "debug" | "predict";
+export type ActivityType = "build" | "debug" | "predict" | "family";
 export type InstructionType = Statement["type"];
 
 export interface Challenge {
