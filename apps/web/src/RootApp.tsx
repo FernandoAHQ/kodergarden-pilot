@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from "react";
-import adventureBackground from "../../../resources/assets/home/adventure_background.webp";
 import challengesIcon from "../../../resources/assets/home/icon_challenges.webp";
 import createLiveIcon from "../../../resources/assets/home/icon_create_live.webp";
+import homeBackground from "../../../resources/assets/home/home_background_playful_v3.webp";
+import homeBackgroundMobile from "../../../resources/assets/home/home_background_playful_mobile_v3.webp";
 import joinLiveIcon from "../../../resources/assets/home/icon_join_live.webp";
 import practiceIcon from "../../../resources/assets/home/icon_practice.webp";
 import pipHero from "../../../resources/assets/home/pip_hero.webp";
@@ -48,7 +49,7 @@ export function RootApp() {
   if (experience === "student") return <LiveStudent onBack={() => setExperience("home")} />;
 
   return (
-    <main className="adventure-home" style={{ "--adventure-background": `url(${adventureBackground})` } as CSSProperties}>
+    <main className="adventure-home" style={{ "--home-background": `url(${homeBackground})`, "--home-background-mobile": `url(${homeBackgroundMobile})` } as CSSProperties}>
       <header className="adventure-header">
         <Brand />
         <div className="adventure-header__actions">
@@ -57,6 +58,7 @@ export function RootApp() {
       </header>
       <section className="adventure-hero" aria-labelledby="home-title">
         <div className="adventure-hero__copy">
+          <span className="adventure-hero__eyebrow"><i />{t("home.experiencesLabel")}</span>
           <h1 id="home-title">{t("home.greeting")}</h1>
           <p>{t("home.prompt")}</p>
         </div>
@@ -65,12 +67,22 @@ export function RootApp() {
         </div>
       </section>
       <section className="adventure-grid" aria-label={t("home.experiencesLabel")}>
-        {homeCards.map((card) => (
+        {homeCards.map((card, index) => (
           <button key={card.experience} className={`adventure-card adventure-card--${card.tone}`} onClick={() => setExperience(card.experience)} aria-label={`${t(card.titleKey)}. ${t(card.bodyKey)}`}>
-            <span className="adventure-card__category"><span aria-hidden="true">{card.categoryKey === "home.solo" ? "●" : "●●"}</span>{t(card.categoryKey)}</span>
+            <span className="adventure-card__topline">
+              <span className="adventure-card__category"><span className="adventure-card__signal" aria-hidden="true" />{t(card.categoryKey)}</span>
+              <span className="adventure-card__index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            </span>
             <span className="adventure-card__illustration"><img src={card.image} alt="" aria-hidden="true" loading="lazy" decoding="async" /></span>
-            <strong className="adventure-card__title">{t(card.titleKey)}</strong>
-            <span className="adventure-card__description">{t(card.bodyKey)}</span>
+            <span className="adventure-card__footer">
+              <span className="adventure-card__copy">
+                <strong className="adventure-card__title">{t(card.titleKey)}</strong>
+                <span className="adventure-card__description">{t(card.bodyKey)}</span>
+              </span>
+              <span className="adventure-card__arrow" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false"><path d="M4 10h11m-4.5-4.5L15 10l-4.5 4.5" /></svg>
+              </span>
+            </span>
           </button>
         ))}
       </section>

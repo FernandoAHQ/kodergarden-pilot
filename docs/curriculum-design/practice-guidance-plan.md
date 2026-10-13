@@ -1,6 +1,6 @@
 # Practice guidance plan
 
-Status: T0–T3 implemented in guided Practice on 13 October 2026. T4 authoring and reuse in Campaign and Live remain pending. Classroom and physical-device validation remain pending.
+Status: T0–T3 implemented in guided Practice on 13 October 2026. The fixed block reference, trace insight, failed-attempt review, and progressive hints are also reused on demand in the redesigned Garden Expedition. T4 admin authoring and Live reuse remain pending. Classroom and physical-device validation remain pending.
 
 ## Purpose and scope
 
@@ -194,10 +194,10 @@ Useful bounded events are `coachShown`, `referenceOpened`, `traceReviewOpened` a
 
 ### T4 — Authoring and broader reuse
 
-**Pending.**
+**Partially implemented.**
 
 - Add admin validation for guidance mode, concept keys, localization parity and hint availability.
-- Reuse the fixed guidance definitions in Campaign and Live after separate review of their scoring and facilitation behavior.
+- Campaign reuse is complete for Garden Expedition: assistance is recorded separately, optimization remains optional, and fresh/delayed checks do not auto-open concept coaching. Live reuse remains pending its facilitation review.
 - Allow curriculum authors to override examples only after the fixed content model succeeds in a pilot; avoid a general rich-text popup editor in the first slice.
 
 ## Validation and decision gates

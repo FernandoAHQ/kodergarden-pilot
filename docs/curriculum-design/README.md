@@ -22,7 +22,8 @@ The recommended learning cycle is: encounter a problem, predict behavior, invest
 | [Research and Evidence Register](research-and-evidence.md) | Connects research and official learning environments to design decisions, with limits on the claims. |
 | [P0–P4 implementation notes](P0-P4-implementation.md) | Records the implemented execution, curriculum, trace, and evidence slices and their validation limits. |
 | [P5 implementation notes](P5-implementation.md) | Records item sensing, collection, multi-objective results, C07, compatibility, and the remaining X4 evidence gate. |
-| [Practice guidance implementation](practice-guidance-plan.md) | Records the implemented Practice block help, first-use coaches, trace explanations, progressive hints, responsive behavior, evidence boundaries, and pending T4 reuse. |
+| [Practice guidance implementation](practice-guidance-plan.md) | Records Practice guidance, Campaign reuse, evidence boundaries, and the remaining Live/admin work. |
+| [Garden Expedition redesign](garden-expedition-redesign.md) | Records the eight advanced missions, all-garden evaluation, debug evidence, optional stars, Campaign guidance reuse, and additive catalog revision. |
 
 ## Recommended decisions
 

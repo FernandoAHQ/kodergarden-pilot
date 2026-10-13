@@ -83,7 +83,6 @@ const repeat = (count: number, body: readonly Statement[]): Statement => ({ type
 const ifPath = (body: readonly Statement[]): Statement => ({ type: "if", condition: { type: "pathAhead" }, body });
 const path = (direction: PathDirection) => ({ type: "path", direction } as const);
 const itemHere = () => ({ type: "itemHere" as const });
-const allTools: readonly EditorTool[] = ["moveForward", "turn", "repeat", "if"];
 
 export function resolveChallengeWorld(challenge: PracticeChallengeDefinition, layoutId: string | null | undefined): GridWorldDefinition {
   return challenge.worldVariants?.find((variant) => variant.id === layoutId)?.world ?? challenge.world;
@@ -139,14 +138,63 @@ export const practiceChallenges: readonly PracticeChallengeDefinition[] = [
 ];
 
 export const gardenExpeditionChallenges: readonly PracticeChallengeDefinition[] = [
-  { id: "expedition-winding-path", campaignId: "garden-expedition", order: 1, type: "build", titleKey: "exp.01.title", instructionKey: "exp.01.instruction", conceptKey: "exp.01.concept", world: world(7, 7, 1, 5, "east", 5, 1, [{x:3,y:3},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 5, parSteps: 9, referenceSolution: program([repeat(4,[move()]),left(),repeat(4,[move()])]) },
-  { id: "expedition-twin-corridors", campaignId: "garden-expedition", order: 2, type: "build", titleKey: "exp.02.title", instructionKey: "exp.02.instruction", conceptKey: "exp.02.concept", world: world(8, 7, 0, 5, "north", 6, 1, [{x:2,y:2},{x:3,y:2},{x:4,y:2}]), allowed: allTools, starter: empty(), parBlocks: 5, parSteps: 11, referenceSolution: program([repeat(4,[move()]),right(),repeat(6,[move()])]) },
-  { id: "expedition-spiral-garden", campaignId: "garden-expedition", order: 3, type: "build", titleKey: "exp.03.title", instructionKey: "exp.03.instruction", conceptKey: "exp.03.concept", world: world(7, 7, 1, 5, "east", 3, 3, [{x:4,y:4},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 6, referenceSolution: program([repeat(2,[repeat(2,[move()]),left()])]) },
-  { id: "expedition-gate-check", campaignId: "garden-expedition", order: 4, type: "build", titleKey: "exp.04.title", instructionKey: "exp.04.instruction", conceptKey: "exp.04.concept", world: world(6, 5, 0, 2, "east", 5, 2), allowed: [...allTools,"while"], starter: empty(), parBlocks: 2, parSteps: 5, referenceSolution: programV3([{type:"while",condition:path("ahead"),body:[move()]}]) },
-  { id: "expedition-patrol-route", campaignId: "garden-expedition", order: 5, type: "build", titleKey: "exp.05.title", instructionKey: "exp.05.instruction", conceptKey: "exp.05.concept", world: world(8, 7, 1, 5, "east", 5, 1, [{x:2,y:3},{x:3,y:3},{x:4,y:3}]), allowed: allTools, starter: empty(), parBlocks: 7, parSteps: 9, referenceSolution: program([repeat(4,[ifPath([move()])]),left(),repeat(4,[ifPath([move()])])]) },
-  { id: "expedition-nested-trail", campaignId: "garden-expedition", order: 6, type: "build", titleKey: "exp.06.title", instructionKey: "exp.06.instruction", conceptKey: "exp.06.concept", world: world(7, 7, 1, 1, "east", 3, 3, [{x:4,y:2},{x:2,y:4}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 6, referenceSolution: program([repeat(2,[repeat(2,[move()]),right()])]) },
-  { id: "expedition-detour", campaignId: "garden-expedition", order: 7, type: "build", titleKey: "exp.07.title", instructionKey: "exp.07.instruction", conceptKey: "exp.07.concept", world: world(7, 7, 1, 5, "east", 5, 1, [{x:3,y:2},{x:3,y:3},{x:3,y:4},{x:3,y:5}]), allowed: allTools, starter: empty(), parBlocks: 6, parSteps: 10, referenceSolution: program([left(),repeat(4,[move()]),right(),repeat(4,[move()])]) },
-  { id: "expedition-summit", campaignId: "garden-expedition", order: 8, type: "build", titleKey: "exp.08.title", instructionKey: "exp.08.instruction", conceptKey: "exp.08.concept", world: world(8, 8, 1, 5, "east", 4, 2, [{x:5,y:4},{x:5,y:5},{x:2,y:2}]), allowed: allTools, starter: empty(), parBlocks: 4, parSteps: 8, referenceSolution: program([repeat(2,[repeat(3,[move()]),left()])]) },
+  {
+    id:"expedition-v2-variable-corners",campaignId:"garden-expedition",order:1,type:"family",titleKey:"exp.01.title",instructionKey:"exp.01.instruction",conceptKey:"exp.01.concept",
+    world:corridor(7,7,[...line(5,2,1,"y"),...line(1,5,2,"x").slice(1)],"north"),worldVariants:[
+      {id:"short-then-long",world:corridor(7,7,[...line(4,2,1,"y"),...line(1,6,2,"x").slice(1)],"north")},
+      {id:"long-then-short",world:corridor(7,7,[...line(6,1,1,"y"),...line(1,3,1,"x").slice(1)],"north")},
+    ],allowed:["moveForward","turn","repeat","while"],starter:empty(),parBlocks:5,parSteps:8,referenceSolution:programV3([{type:"while",condition:path("ahead"),body:[move()]},right(),{type:"while",condition:path("ahead"),body:[move()]}]),
+    assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"initial"},
+  },
+  {
+    id:"expedition-v2-open-lane",campaignId:"garden-expedition",order:2,type:"family",titleKey:"exp.02.title",instructionKey:"exp.02.instruction",conceptKey:"exp.02.concept",
+    world:corridor(7,6,[{x:3,y:4},{x:2,y:4},{x:1,y:4},{x:0,y:4}],"north"),worldVariants:[
+      {id:"right-lane",world:corridor(7,6,[{x:3,y:4},{x:4,y:4},{x:5,y:4},{x:6,y:4}],"north")},
+      {id:"rotated-lane",world:corridor(6,7,[{x:1,y:3},{x:1,y:2},{x:1,y:1},{x:1,y:0}],"east")},
+    ],allowed:["moveForward","turn","repeat","ifElse","while"],starter:empty(),parBlocks:5,parSteps:4,referenceSolution:programV3([{type:"ifElse",condition:path("left"),thenBody:[left()],elseBody:[right()]},{type:"while",condition:path("ahead"),body:[move()]}]),
+    assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"fresh"},
+  },
+  {
+    id:"expedition-v2-stop-marker",campaignId:"garden-expedition",order:3,type:"family",titleKey:"exp.03.title",instructionKey:"exp.03.instruction",conceptKey:"exp.03.concept",
+    world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:2,y:1}},worldVariants:[
+      {id:"already-there",world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:0,y:1}}},
+      {id:"middle-marker",world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:4,y:1}}},
+      {id:"far-marker",world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:6,y:1}}},
+    ],allowed:["moveForward","while","repeatUntilGoal"],starter:empty(),parBlocks:2,parSteps:6,referenceSolution:programV3([{type:"repeatUntilGoal",body:[move()]}]),
+    assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"fresh"},
+  },
+  {
+    id:"expedition-v2-packet-patrol",campaignId:"garden-expedition",order:4,type:"family",titleKey:"exp.04.title",instructionKey:"exp.04.instruction",conceptKey:"exp.04.concept",
+    world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[]},worldVariants:[
+      {id:"one-packet",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-1",position:{x:1,y:1}}]}},
+      {id:"spaced-packets",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-0",position:{x:0,y:1}},{id:"packet-2",position:{x:2,y:1}},{id:"packet-3",position:{x:3,y:1}}]}},
+      {id:"fresh-packets",world:{...corridor(6,3,line(0,4,1,"x"),"east"),items:[{id:"packet-0",position:{x:0,y:1}},{id:"packet-1",position:{x:1,y:1}},{id:"packet-3",position:{x:3,y:1}}]}},
+    ],allowed:["moveForward","collect","repeat","if"],starter:programV4([]),parBlocks:4,parSteps:7,referenceSolution:programV4([repeat(4,[{type:"if",condition:itemHere(),body:[collect()]},move()])]),
+    assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"fresh"},
+  },
+  {
+    id:"expedition-v2-overshoot-repair",campaignId:"garden-expedition",order:5,type:"debug",titleKey:"exp.05.title",instructionKey:"exp.05.instruction",conceptKey:"exp.05.concept",
+    world:{...corridor(8,3,line(0,7,1,"x"),"east"),goal:{x:3,y:1}},allowed:["moveForward","repeatUntilGoal"],starter:programV3([{type:"repeatUntilGoal",body:[move(),move()]}]),parBlocks:2,parSteps:3,referenceSolution:programV3([{type:"repeatUntilGoal",body:[move()]}]),
+    assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"delayed"},
+  },
+  {
+    id:"expedition-v2-staircase",campaignId:"garden-expedition",order:6,type:"build",titleKey:"exp.06.title",instructionKey:"exp.06.instruction",conceptKey:"exp.06.concept",
+    world:corridor(9,9,[{x:0,y:8},{x:1,y:8},{x:2,y:8},{x:2,y:7},{x:2,y:6},{x:3,y:6},{x:4,y:6},{x:4,y:5},{x:4,y:4},{x:5,y:4},{x:6,y:4},{x:6,y:3},{x:6,y:2}],"east"),allowed:["moveForward","turn","repeat"],starter:empty(),parBlocks:7,parSteps:18,referenceSolution:program([repeat(3,[repeat(2,[move()]),left(),repeat(2,[move()]),right()])]),
+    assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"fresh"},
+  },
+  {
+    id:"expedition-v2-detour-repair",campaignId:"garden-expedition",order:7,type:"debug",titleKey:"exp.07.title",instructionKey:"exp.07.instruction",conceptKey:"exp.07.concept",
+    world:world(7,7,1,5,"east",5,1,[{x:3,y:2},{x:3,y:3},{x:3,y:4},{x:3,y:5}]),allowed:["moveForward","turn","repeat"],starter:program([repeat(4,[move()]),left(),repeat(4,[move()])]),parBlocks:6,parSteps:10,referenceSolution:program([left(),repeat(4,[move()]),right(),repeat(4,[move()])]),
+    assessment:{scope:"active-case",correctness:"discovery",maxCollisions:0,occasion:"delayed"},
+  },
+  {
+    id:"expedition-v2-adaptive-summit",campaignId:"garden-expedition",order:8,type:"family",titleKey:"exp.08.title",instructionKey:"exp.08.instruction",conceptKey:"exp.08.concept",
+    world:{...shiftingCorridor(7,7,[{x:1,y:5},{x:2,y:5},{x:3,y:5},{x:4,y:5},{x:4,y:4},{x:4,y:3},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:1,y:2}],"east",[{id:"summit-hedge-a",from:{x:5,y:4},to:{x:5,y:5}},{id:"summit-hedge-b",from:{x:5,y:1},to:{x:4,y:1}}]),items:[{id:"packet-a",position:{x:1,y:5}},{id:"packet-b",position:{x:4,y:4}}]},worldVariants:[
+      {id:"south-east-north",world:{...shiftingCorridor(7,7,[{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4},{x:4,y:3},{x:4,y:2},{x:4,y:1}],"south",[{id:"summit-hedge-a",from:{x:0,y:5},to:{x:1,y:5}},{id:"summit-hedge-b",from:{x:5,y:5},to:{x:5,y:4}}]),items:[{id:"packet-a",position:{x:1,y:2}},{id:"packet-b",position:{x:2,y:4}},{id:"packet-c",position:{x:4,y:2}}]}},
+      {id:"north-west-south",world:{...shiftingCorridor(7,7,[{x:5,y:5},{x:5,y:4},{x:5,y:3},{x:5,y:2},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:2,y:3},{x:2,y:4},{x:2,y:5}],"north",[{id:"summit-hedge-a",from:{x:6,y:1},to:{x:5,y:1}},{id:"summit-hedge-b",from:{x:1,y:1},to:{x:1,y:2}}]),items:[{id:"packet-a",position:{x:5,y:4}}]}},
+    ],allowed:["moveForward","turn","collect","if","ifElse","repeatUntilGoal"],starter:programV4([]),parBlocks:6,parSteps:14,referenceSolution:programV4([{type:"repeatUntilGoal",body:[{type:"if",condition:itemHere(),body:[collect()]},{type:"ifElse",condition:path("ahead"),thenBody:[move()],elseBody:[left()]}]}]),
+    assessment:{scope:"case-family",correctness:"discovery",maxCollisions:0,occasion:"delayed"},
+  },
 ];
 
 /** Isolated pilot revision. Historical Foundations definitions and progress IDs stay intact. */

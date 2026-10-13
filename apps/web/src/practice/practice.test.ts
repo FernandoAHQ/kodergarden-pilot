@@ -1,4 +1,4 @@
-import { countBlocks, program } from "@kodergarden/language";
+import { countBlocks, program, programV4 } from "@kodergarden/language";
 import { executeProgram, GridRuntime } from "@kodergarden/engine";
 import { campaigns, challengeBelongsToCampaign, challengeWorlds, evaluatePracticeProgram, gardenExpeditionChallenges, getCampaign, selectChallengeWorld } from "@kodergarden/shared";
 import { translate } from "../i18n.js";
@@ -25,7 +25,10 @@ const moveOnly=program([{type:"moveForward"}]);assert(!evaluatePracticeProgram(c
 const hardCoded=program([{type:"turnLeft"},{type:"moveForward"},{type:"moveForward"},{type:"moveForward"}]);assert(!evaluatePracticeProgram(ifElseChallenge,hardCoded,countBlocks(hardCoded)).complete,"a fixed Move/Turn sequence cannot pass every Dynamic If / Else layout");assert(!evaluatePracticeProgram(challenges[15]!,hardCoded,countBlocks(hardCoded)).complete,"a fixed sequence cannot pass the changing finale");
 assert(campaigns.length===3&&getCampaign("foundations")?.challenges.length===16,"campaign registry contains Foundations");
 assert(gardenExpeditionChallenges.length===8&&gardenExpeditionChallenges.every((item,index)=>item.order===index+1),"Garden Expedition contains eight ordered challenges");
-assert(challengeBelongsToCampaign("garden-expedition","expedition-winding-path")&&!challengeBelongsToCampaign("foundations","expedition-winding-path"),"campaign membership is authoritative");
-for(const challenge of gardenExpeditionChallenges){const solution=challenge.referenceSolution!;const result=executeProgram(solution,new GridRuntime(challenge.world));assert(result.succeeded,`${challenge.id} reference solution succeeds`);assert(evaluatePracticeProgram(challenge,solution).complete,`${challenge.id} reference solution uses only learner-visible tools`);assert(countBlocks(solution)<=challenge.parBlocks!&&result.executionSteps<=challenge.parSteps!,`${challenge.id} reference solution meets both targets`);}
+assert(challengeBelongsToCampaign("garden-expedition","expedition-v2-variable-corners")&&!challengeBelongsToCampaign("foundations","expedition-v2-variable-corners"),"campaign membership is authoritative");
+assert(gardenExpeditionChallenges.filter(challenge=>challenge.worldVariants?.length).length===5,"Garden Expedition tests transfer across five layout families");
+for(const challenge of gardenExpeditionChallenges){const solution=challenge.referenceSolution!;const evaluation=evaluatePracticeProgram(challenge,solution);assert(evaluation.complete,`${challenge.id} reference solution uses only learner-visible tools`);for(const layout of challengeWorlds(challenge)){const result=executeProgram(solution,new GridRuntime(layout.world));assert(result.succeeded,`${challenge.id} reference solution succeeds on ${layout.id}`);assert(result.executionSteps<=challenge.parSteps!,`${challenge.id} reference solution meets its step target on ${layout.id}`);}assert(countBlocks(solution)<=challenge.parBlocks!,`${challenge.id} reference solution meets its block target`);}
+const fixedCorridor=program([{type:"repeat",count:6,body:[{type:"moveForward"}]}]);assert(!evaluatePracticeProgram(gardenExpeditionChallenges[0]!,fixedCorridor).complete,"a fixed Repeat count cannot solve the variable-corner family");
+const collectEverywhere=programV4([{type:"repeat",count:4,body:[{type:"collect"},{type:"moveForward"}]}]);assert(!evaluatePracticeProgram(gardenExpeditionChallenges[3]!,collectEverywhere).complete,"Packet Patrol rejects invalid collection attempts");
 assert(translate("en","campaign.expedition.title")==="Garden Expedition"&&translate("es","campaign.expedition.title")==="Expedición del Jardín","campaign titles are localized");
 console.log("practice and campaigns: 45 tests passed");
