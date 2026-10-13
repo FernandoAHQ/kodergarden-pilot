@@ -95,7 +95,8 @@ try {
   const late = await submit(students[0]!, correct, true); if (late.ok || late.error.code !== "SUBMISSIONS_CLOSED") throw new Error("late-submission-accepted");
 
   const exported = await emitOk<PilotSessionExport>(teacher, "teacher:export", { token: created.teacherToken });
-  if (exported.rounds.length !== 1 || JSON.stringify(exported).includes("participantToken")) throw new Error("export-invalid");
+  const exportedJson = JSON.stringify(exported);
+  if (exported.version !== 1 || exported.rounds.length !== 1 || exportedJson.includes("participantToken") || exportedJson.includes("participantId") || exportedJson.includes("displayName") || exportedJson.includes("Student 01") || exportedJson.includes(created.snapshot.code)) throw new Error("export-invalid");
 
   const totalDurationMs = performance.now() - startedAt;
   const average = latencies.reduce((sum, value) => sum + value, 0) / Math.max(1, latencies.length);

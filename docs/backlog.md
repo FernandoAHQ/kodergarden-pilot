@@ -1,29 +1,13 @@
 # Kodergarden Delivery Board
 
-Last reviewed: 2026-10-07  
+Last reviewed: 2026-10-13
 Current milestone: **M1 — Pilot ready**
 
 This file is the source of truth for near-term delivery. Keep **Next** ordered and no more than five items; keep **In progress** at two items or fewer.
 
 ## In progress
 
-### KG-014 — Add If/Else as a learnable programming block
-
-**Epic:** E1 Learning experience / E2 Authoring and simulation  
-**Outcome:** A learner can express and observe a two-branch decision in a program.
-
-Acceptance criteria:
-
-- Version 1 programs remain valid and behave as before.
-- Version 2 programs can contain `ifElse` with independently editable Then and Else bodies.
-- Validation rejects `ifElse` in version 1 and applies existing depth and block limits to both branches.
-- The interpreter executes exactly one branch and emits condition/highlighting paths that the UI can display correctly.
-- The editor supports adding, moving, nesting, deleting, undoing, and redoing blocks in both branches.
-- Read-only and live review views render both branches.
-- English and Spanish labels and the Foundations challenge explain the new block consistently.
-- Relevant automated tests, typechecking, and the production build pass.
-
-Dependencies: none. Existing uncommitted workspace changes are the active implementation.
+No items.
 
 ## Review
 
@@ -41,10 +25,12 @@ Acceptance criteria:
 - `pnpm test` passes from a clean install-compatible workspace.
 - `pnpm typecheck` passes.
 - `pnpm build` produces the deployable server and web artifacts.
+- `pnpm test:database` passes against a freshly migrated and seeded `kodergarden_test` database.
 - The 40-client Live Classroom load scenario completes without an unhandled server exception.
+- A repeatable CI workflow enforces the automated release checks.
 - Any failure is captured as a separate defect with reproduction evidence rather than hidden in this item.
 
-Dependencies: KG-014.
+Dependencies: access to PostgreSQL for the database and load checks. KG-014 is complete.
 
 ### KG-016 — Complete Android tablet QA
 
@@ -137,10 +123,10 @@ Acceptance criteria:
 
 Dependencies: KG-020.
 
-### KG-022 — Decide the next persistence boundary
+### KG-022 — Decide the next learner and Live-session persistence boundary
 
 **Epic:** E4 Pilot operations  
-**Outcome:** Persistence is added only if pilot evidence shows that device-local progress or ephemeral sessions are inadequate.
+**Outcome:** Learner or Live-session persistence is added only if pilot evidence shows that device-local progress or ephemeral sessions are inadequate. Published curriculum and administrative accounts are already durable.
 
 Acceptance criteria:
 
@@ -151,15 +137,26 @@ Acceptance criteria:
 
 Dependencies: KG-021.
 
+## Done
+
+### KG-014 — Add If/Else as a learnable programming block
+
+Versioned programs now support independently editable Then and Else bodies while retaining compatibility with earlier programs. Validation, interpreter execution, editor transformations, read-only review, localization, curriculum content, and automated coverage are complete. The language has since advanced to version 3 with parameterized path conditions, While, and Repeat Until Goal.
+
+### KG-023 — Reconcile release scope and de-identify pilot evidence
+
+The product guide, README, board, and decision log now distinguish learner-local progress and ephemeral Live sessions from durable curriculum and administrative accounts. Structured logs exclude participant names and active join codes. Pilot exports use sequential participant and round numbers and exclude names, internal IDs, session codes, capabilities, and program ASTs. Regression coverage enforces these boundaries.
+
 ## Done baseline
 
 These capabilities existed when this board was created; commit history and tests are their implementation evidence. They are recorded as a baseline rather than reconstructed as retroactive stories.
 
 - Visual language, validation, interpreter, grid runtime, and semantic playback events.
-- Card-based editor with nested Repeat and If, drag/drop, undo/redo, and execution highlighting.
+- Card-based editor with nested Repeat, If, If/Else, While, and Repeat Until Goal; parameterized path conditions; drag/drop; undo/redo; and execution highlighting.
 - Foundations Practice campaign and Garden Expedition advanced campaign with local progress.
 - English and neutral Latin American Spanish UI.
 - Live Classroom session lifecycle, server-side validation/evaluation, reconnect, review, and pilot export.
+- PostgreSQL-backed bilingual curriculum publishing with drafts, reference validation, audit history, recovery, and admin/viewer team roles.
 - Same-origin production deployment, health/readiness checks, rate limits, and structured redacted logs.
 - Automated unit/integration coverage and a repeatable 40-client load scenario.
 

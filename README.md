@@ -1,6 +1,6 @@
 # Kodergarden
 
-Kodergarden is a classroom-focused visual programming platform. It includes self-paced Practice Mode and an ephemeral, realtime Live Classroom experience for a projected teacher board and student devices.
+Kodergarden is a bilingual, classroom-focused visual programming platform for beginner learners. It combines self-paced Practice and Challenge modes with an ephemeral, realtime Live Classroom experience for a projected teacher board and student devices. A database-backed administration workspace lets the curriculum team draft, validate, publish, and recover campaign content; students do not need accounts.
 
 Project delivery is tracked in the lightweight [project guide](docs/project.md) and [delivery board](docs/backlog.md). The current milestone is pilot readiness.
 
@@ -26,6 +26,8 @@ pnpm install
 pnpm dev
 ```
 
+Kodergarden requires PostgreSQL for its published curriculum. Before the first application start, configure `DATABASE_URL`, run the migrations, and seed the catalog by following [Database-backed curriculum](docs/database-catalog.md).
+
 Then open `http://localhost:5173`. The combined command starts the Vite web client on port 5173 and the NestJS/Socket.IO server on port 3001. During development, Vite proxies `/socket.io` to Nest, so phones and tablets connect through the same host and port as the page. Active Live sessions are intentionally held in server memory, so restarting the server ends them.
 
 For another device on the same network, start with `pnpm dev -- --host`, then open the LAN URL Vite prints, such as `http://192.168.1.161:5173`. A separately hosted frontend can set `VITE_LIVE_SERVER_URL` to the public Socket.IO server origin.
@@ -47,19 +49,21 @@ Kodergarden deploys as one Node process. Nest serves the built React application
 ```bash
 pnpm install --frozen-lockfile
 pnpm build
+pnpm --filter @kodergarden/server migration:run
+pnpm --filter @kodergarden/server catalog:seed
 pnpm start
 ```
 
-The hosting platform may set `PORT`; it defaults to `3001`. Copy `.env.example` when running outside a managed host. `GET /healthz` is the liveness endpoint and `GET /readyz` is the readiness endpoint.
+The hosting platform may set `PORT`; it defaults to `3001`. Supply the settings described in `.env.example`, including a production PostgreSQL connection. Application startup rejects pending migrations. `GET /healthz` is the process-liveness endpoint and `GET /readyz` checks database readiness.
 
 The recommended container path is:
 
 ```bash
 docker build -t kodergarden .
-docker run --rm -p 3001:3001 kodergarden
+docker run --rm -p 3001:3001 --env-file .env kodergarden
 ```
 
-Then open `http://localhost:3001`. In production, terminate HTTPS at the hosting platform or reverse proxy and ensure WebSocket upgrade requests for `/socket.io/` reach this same process.
+The container must be able to reach the PostgreSQL host in `DATABASE_URL`; `localhost` inside the application container is not the host machine. Then open `http://localhost:3001`. In production, terminate HTTPS at the hosting platform or reverse proxy and ensure WebSocket upgrade requests for `/socket.io/` reach this same process.
 
 Important deployment constraints:
 
@@ -95,13 +99,17 @@ The interpreter emits a semantic `conditionEvaluated` event with the authored st
 
 ## Campaigns, Practice Mode, and localization
 
-The shared campaign registry groups language-neutral challenges into stable, reusable collections. **Foundations** contains sixteen guided Practice activities; **Garden Expedition** is an eight-stage advanced campaign with sequential local progress, persistent best metrics, and one-to-three-star efficiency targets. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
+The published catalog groups language-neutral challenges into stable, reusable collections. **Foundations** contains sixteen guided Practice activities; **Garden Expedition** is an eight-stage advanced campaign with sequential local progress, persistent best metrics, and one-to-three-star efficiency targets. A centralized React context supplies English and neutral Latin American Spanish copy, detects the initial browser language, and persists the student's choice. Programs, worlds, evaluation, constraints, and saved completion IDs never contain localized strings.
 
 Foundations uses intentional open lawns and connected hedge corridors. Challenges 13, 14, and 16 add deterministic shifting hedges that visibly move before Pip's first instruction, so sensing occurs only after the garden settles. Practice solutions must satisfy the authored block limit, use the newly introduced tool when required, avoid hedge collisions, and solve every declared garden layout. Live Classroom intentionally evaluates only the single layout shown for that round.
 
 During development, `http://localhost:5173/lab/dynamic-garden` opens the isolated Dynamic Garden Lab that records the Shifting Hedge decision and retains the two rejected alternatives for comparison. It is not linked from normal navigation and is removed from production JavaScript builds. See `docs/dynamic-garden-lab.md` for the review protocol.
 
-Local browser storage retains the selected `en`/`es` locale, legacy Practice completion, and versioned per-campaign challenge results. There are no accounts or remote progress records.
+Local browser storage retains the selected `en`/`es` locale, legacy Practice completion, and versioned per-campaign challenge results. There are no learner accounts or remote learner-progress records. Administrative accounts exist only for curriculum and team management; see [Database-backed curriculum](docs/database-catalog.md).
+
+## Curriculum administration
+
+PostgreSQL stores published campaign revisions, isolated drafts, localized copy, authored layouts and programs, team roles, and curriculum audit history. Admins can edit and publish; viewers can inspect drafts, previews, validation results, and history. Publishing is blocked when reference programs fail validation. Live Classroom sessions remain in memory and are not moved into PostgreSQL.
 
 ## Tablet-first interface
 
@@ -149,7 +157,7 @@ The observation goal is whether students discover why Repeat is useful, not whet
 
 Sessions are intentionally in memory. An ended session is removed immediately; an abandoned session expires after four hours of inactivity. Restarting the server ends every active session by design. Clients attempt capability-based reconnect while the process remains alive and return to a localized unavailable-session state after a restart or expiration.
 
-Server logs are structured JSON and omit teacher/participant capabilities and full program ASTs. During Review, the unobtrusive **Export pilot JSON** action downloads session/round timing, participant submission counts, final correctness, block counts, and execution steps. Export is optional and contains no capability tokens or full programs.
+Server logs are structured JSON and omit participant names, active join codes, teacher/participant capabilities, and full program ASTs. During Review, the unobtrusive **Export pilot JSON** action downloads de-identified session/round timing, sequential participant numbers, submission counts, final correctness, block counts, and execution steps. The optional export contains no names, internal participant/session IDs, join codes, capability tokens, or full programs. Because exact event times remain useful for pilot analysis, treat the file as de-identified operational data rather than as guaranteed anonymous data and retain it only as long as the pilot requires.
 
 Run the repeatable 40-client Socket.IO stress scenario with:
 

@@ -1,6 +1,6 @@
 import { program } from "@kodergarden/language";
 import { allChallenges } from "@kodergarden/shared";
-import { LiveDomainError, LiveSessionService } from "./live-session.service.js";
+import { LiveDomainError, LiveSessionService, type SessionLogEvent } from "./live-session.service.js";
 
 let passed = 0;
 const assert = (condition: unknown, message: string): void => { if (!condition) throw new Error(message); passed += 1; };
@@ -12,7 +12,8 @@ const expectCode = (code: string, action: () => unknown): void => {
 let token = 0;
 let now = 100;
 const codes = ["123456", "123456", "654321"];
-const service = new LiveSessionService({ codeGenerator: () => codes.shift() ?? "999999", tokenGenerator: () => `token-${++token}`, clock: () => now++, challenges: allChallenges, sweepIntervalMs: 0, logger: () => {} });
+const sessionLogs: SessionLogEvent[] = [];
+const service = new LiveSessionService({ codeGenerator: () => codes.shift() ?? "999999", tokenGenerator: () => `token-${++token}`, clock: () => now++, challenges: allChallenges, sweepIntervalMs: 0, logger: (event) => { sessionLogs.push(event); } });
 
 const created = service.createSession();
 assert(created.snapshot.phase === "LOBBY" && created.snapshot.code === "123456", "creates a lobby with six-digit code");
@@ -28,6 +29,8 @@ const adaReconnect = service.reconnectParticipant(ada.participantToken);
 assert(adaReconnect.participantId === ada.participantId && adaReconnect.snapshot.participants.length === 1, "participant reconnect does not duplicate identity");
 const grace = service.joinParticipant("123456", "Grace");
 assert(grace.snapshot.participants.length === 2, "multiple participants can join");
+const sessionLogJson = JSON.stringify(sessionLogs);
+assert(!sessionLogJson.includes("Ada") && !sessionLogJson.includes("Grace") && !sessionLogJson.includes("123456"), "structured logs exclude participant names and active join codes");
 expectCode("UNABLE_TO_RECONNECT", () => service.selectChallenge(ada.participantToken, "sequence-01"));
 expectCode("UNABLE_TO_RECONNECT", () => service.selectCampaign(ada.participantToken, "foundations"));
 expectCode("UNABLE_TO_RECONNECT", () => service.startChallenge(ada.participantToken));
@@ -71,10 +74,10 @@ assert(review.phase === "REVIEW" && review.submissions.length === 2, "closing su
 const adaSummary = review.submissions.find((submission) => submission.participantId === ada.participantId);
 assert(adaSummary?.correct && adaSummary.blockCount === 2 && adaSummary.executionSteps === 2, "server independently evaluates correctness and metrics");
 const exported = service.exportSession(created.teacherToken);
-const adaExport = exported.rounds[0]?.participants.find((participant) => participant.participantId === ada.participantId);
-assert(exported.rounds.length === 1 && exported.rounds[0]?.campaignId === "foundations" && adaExport?.submissionAttempts === 3 && adaExport.resubmissions === 2 && adaExport.correct === true, "pilot export includes campaign identity and final metrics");
+const adaExport = exported.rounds[0]?.participants.find((participant) => participant.participantNumber === 1);
+assert(exported.version === 1 && exported.rounds.length === 1 && exported.rounds[0]?.roundNumber === 1 && exported.rounds[0]?.campaignId === "foundations" && adaExport?.submissionAttempts === 3 && adaExport.resubmissions === 2 && adaExport.correct === true, "pilot export includes de-identified participant numbering, campaign identity, and final metrics");
 const exportedJson = JSON.stringify(exported);
-assert(!exportedJson.includes('"teacherToken"') && !exportedJson.includes('"participantToken"') && !exportedJson.includes('"program"'), "pilot export excludes capabilities and full ASTs");
+assert(!exportedJson.includes('"teacherToken"') && !exportedJson.includes('"participantToken"') && !exportedJson.includes('"program"') && !exportedJson.includes('"displayName"') && !exportedJson.includes('"participantId"') && !exportedJson.includes('"sessionId"') && !exportedJson.includes('"code"') && !exportedJson.includes("Ada") && !exportedJson.includes("Grace"), "pilot export excludes direct identifiers, session access data, capabilities, and full ASTs");
 expectCode("SUBMISSIONS_CLOSED", () => service.submitSolution(ada.participantToken, round, "sequence-01", correct));
 
 const fewest = service.quickPick(created.teacherToken, "fewest");

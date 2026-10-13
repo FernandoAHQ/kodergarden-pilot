@@ -56,7 +56,8 @@ try {
   assert(review.phase === "REVIEW" && review.submissions[0]?.correct, "teacher closes into evaluated review");
   assert((await studentReview).phase === "REVIEW", "student receives review phase");
   const exported = await emit<PilotSessionExport>(teacher, "teacher:export", { token: created.teacherToken });
-  assert(exported.rounds[0]?.participants[0]?.submissionAttempts === 1 && !JSON.stringify(exported).includes(joined.participantToken), "socket pilot export is capability-free");
+  const exportedJson = JSON.stringify(exported);
+  assert(exported.rounds[0]?.participants[0]?.participantNumber === 1 && exported.rounds[0]?.participants[0]?.submissionAttempts === 1 && !exportedJson.includes(joined.participantToken) && !exportedJson.includes(joined.participantId) && !exportedJson.includes("Sofía") && !exportedJson.includes(created.snapshot.code), "socket pilot export is de-identified and capability-free");
 
   const studentEnded = nextSnapshot(student);
   const ended = await emit<LiveSessionSnapshot>(teacher, "teacher:endSession", { token: created.teacherToken });

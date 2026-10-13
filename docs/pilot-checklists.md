@@ -73,4 +73,12 @@ Test at least one Android tablet and, when available, one iPad. If only one plat
 - [ ] Where do they ask for help?
 - [ ] Which challenge causes unexpected difficulty?
 
+## Pilot-data handling
+
+- [ ] Export pilot JSON only when it is needed for the agreed pilot evaluation.
+- [ ] Confirm the file contains participant and round numbers but no names, internal IDs, join codes, capability tokens, or program ASTs.
+- [ ] Store the export only in the agreed location with access limited to the pilot team.
+- [ ] Record the retention deadline and delete the export when it is no longer needed.
+- [ ] Summarize findings without student-identifying data.
+
 Do not tune the challenge sequence from assumptions; use these observations from real students.

@@ -31,9 +31,10 @@ export interface CreateSessionResult { readonly teacherToken: string; readonly s
 export interface JoinSessionResult { readonly participantToken: string; readonly participantId: string; readonly snapshot: LiveSessionSnapshot }
 export interface SessionCredentials { readonly token: string }
 export interface SubmitSolutionPayload { readonly participantToken: string; readonly roundId: string; readonly challengeId: string; readonly program: Program }
-export interface PilotParticipantResult { readonly participantId: string; readonly displayName: string; readonly submitted: boolean; readonly submissionAttempts: number; readonly resubmissions: number; readonly correct: boolean | null; readonly blockCount: number | null; readonly executionSteps: number | null; readonly submittedAt: number | null }
-export interface PilotRoundSummary { readonly roundId: string; readonly campaignId: string; readonly campaignRevisionId: string | null; readonly challengeId: string; readonly layoutId: string | null; readonly startedAt: number; readonly closedAt: number | null; readonly participants: readonly PilotParticipantResult[] }
-export interface PilotSessionExport { readonly sessionId: string; readonly code: string; readonly startedAt: number; readonly exportedAt: number; readonly phase: LivePhase; readonly rounds: readonly PilotRoundSummary[] }
+export interface PilotParticipantResult { readonly participantNumber: number; readonly submitted: boolean; readonly submissionAttempts: number; readonly resubmissions: number; readonly correct: boolean | null; readonly blockCount: number | null; readonly executionSteps: number | null; readonly submittedAt: number | null }
+export interface PilotRoundSummary { readonly roundNumber: number; readonly campaignId: string; readonly campaignRevisionId: string | null; readonly challengeId: string; readonly layoutId: string | null; readonly startedAt: number; readonly closedAt: number | null; readonly participants: readonly PilotParticipantResult[] }
+/** De-identified pilot evidence. Excludes names, internal IDs, join codes, capability tokens, and program ASTs. */
+export interface PilotSessionExport { readonly version: 1; readonly startedAt: number; readonly exportedAt: number; readonly phase: LivePhase; readonly rounds: readonly PilotRoundSummary[] }
 
 export interface ClientToServerEvents {
   "teacher:create": (payload: Record<string, never>, ack: (result: LiveResult<CreateSessionResult>) => void) => void;

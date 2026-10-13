@@ -57,14 +57,14 @@ export function RootApp() {
           <p>{t("home.prompt")}</p>
         </div>
         <div className="tech-garden-pip" aria-hidden="true">
-          <img src={pipHero} alt="" />
+          <img src={pipHero} alt="" fetchPriority="high" decoding="async" />
         </div>
       </section>
       <section className="adventure-grid" aria-label={t("home.experiencesLabel")}>
         {homeCards.map((card) => (
           <button key={card.experience} className={`adventure-card adventure-card--${card.tone}`} onClick={() => setExperience(card.experience)} aria-label={`${t(card.titleKey)}. ${t(card.bodyKey)}`}>
             <span className="adventure-card__category"><span aria-hidden="true">{card.categoryKey === "home.solo" ? "●" : "●●"}</span>{t(card.categoryKey)}</span>
-            <span className="adventure-card__illustration"><img src={card.image} alt="" aria-hidden="true" /></span>
+            <span className="adventure-card__illustration"><img src={card.image} alt="" aria-hidden="true" loading="lazy" decoding="async" /></span>
             <strong className="adventure-card__title">{t(card.titleKey)}</strong>
             <span className="adventure-card__description">{t(card.bodyKey)}</span>
           </button>

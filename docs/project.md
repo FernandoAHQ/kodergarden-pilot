@@ -4,7 +4,7 @@ This document is the lightweight operating model for Kodergarden. It should make
 
 ## Product outcome
 
-Kodergarden helps a teacher run an engaging introductory programming lesson in which students can build, run, submit, and discuss visual programs from classroom devices.
+Kodergarden helps a teacher run an engaging introductory programming lesson in which beginner learners can build, run, submit, and discuss visual programs from classroom devices. Students participate without accounts; a small curriculum team uses authenticated administration tools to manage the published learning content.
 
 The current product milestone is **Pilot-ready classroom experience**.
 
@@ -14,9 +14,9 @@ The milestone is successful when:
 - 20–40 students can join, program, submit, and reconnect reliably;
 - the teacher can review student solutions on a physical projector;
 - the core editor works on at least one Android tablet and, when available, one iPad;
-- pilot observations and the anonymous session export provide enough evidence to choose the next product investment.
+- pilot observations and the de-identified session export provide enough evidence to choose the next product investment.
 
-Accounts, durable cloud progress, multi-instance Live sessions, and a broad curriculum are deliberately outside this milestone.
+Learner accounts, durable cloud learner progress, multi-instance Live sessions, and broad curriculum expansion are deliberately outside this milestone. Administrative accounts and durable, revisioned curriculum publishing are already part of the platform and must pass the release verification gate.
 
 ## Epics
 
@@ -26,7 +26,8 @@ Accounts, durable cloud progress, multi-instance Live sessions, and a broad curr
 | E2 | Authoring and simulation | Students can construct and understand programs comfortably on classroom devices. | Built; device QA pending |
 | E3 | Live Classroom | A teacher can facilitate a synchronized class and review student work. | Built; classroom QA pending |
 | E4 | Pilot operations | The app can be deployed, observed, supported, and evaluated during a pilot. | In progress |
-| E5 | Curriculum expansion | Learning can extend beyond the current Foundations and Garden Expedition content. | Later |
+| E5 | Curriculum operations | A small team can safely draft, validate, publish, inspect, and recover bilingual curriculum. | Built; database verification pending |
+| E6 | Curriculum expansion | Learning can extend beyond the current Foundations and Garden Expedition content. | Later |
 
 ## Milestones
 
